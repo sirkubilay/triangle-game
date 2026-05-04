@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://triangle-game-production.up.railway.app';
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://triangle-game-server.onrender.com';
 console.log('[socket] SERVER_URL:', SERVER_URL);
 let socket = null;
 

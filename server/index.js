@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 
 const app = express();
-const ALLOWED_ORIGINS = ['https://triangle-game.vercel.app', 'http://localhost:5173'];
+const ALLOWED_ORIGINS = ['https://triangle-game.vercel.app', 'https://triangle-game-server.onrender.com', 'http://localhost:5173'];
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 
 const httpServer = createServer(app);
