@@ -1,18 +1,19 @@
-const express = require('express');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
 
 const app = express();
 const ALLOWED_ORIGINS = ['https://triangle-game.vercel.app', 'http://localhost:5173'];
 app.use(cors({ origin: ALLOWED_ORIGINS }));
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
 });
 
 const rooms = new Map();
-const matchmakingQueue = []; // { socketId, playerName, gameConfig }
+const matchmakingQueue = [];
 
 function genCode() {
   return Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -40,7 +41,6 @@ function removeFromQueue(socketId) {
 io.on('connection', (socket) => {
   console.log('Bağlandı:', socket.id);
 
-  // ── Oda oluştur (arkadaşla oyna) ──
   socket.on('create-room', ({ playerName, gameConfig }) => {
     const code   = genCode();
     const points = generatePoints(gameConfig.pointCount ?? 10);
@@ -57,7 +57,6 @@ io.on('connection', (socket) => {
     console.log(`Oda oluşturuldu: ${code} — ${playerName}`);
   });
 
-  // ── Odaya katıl (kod ile) ──
   socket.on('join-room', ({ code, playerName }) => {
     const room = rooms.get(code?.toUpperCase());
     if (!room)                    { socket.emit('join-error', { msg: 'Oda bulunamadı.' });  return; }
@@ -81,7 +80,6 @@ io.on('connection', (socket) => {
     console.log(`Oyun başladı: ${code.toUpperCase()}`);
   });
 
-  // ── Hızlı eşleşme ──
   socket.on('find-match', ({ playerName, gameConfig }) => {
     removeFromQueue(socket.id);
     matchmakingQueue.push({ socketId: socket.id, playerName, gameConfig });
@@ -122,18 +120,14 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ── Eşleşme iptal ──
   socket.on('cancel-match', () => {
     removeFromQueue(socket.id);
-    console.log(`Eşleşme iptal: ${socket.id}`);
   });
 
-  // ── Hamle ──
   socket.on('make-move', ({ code, p1, p2 }) => {
     socket.to(code).emit('opponent-move', { p1, p2 });
   });
 
-  // ── Yeniden başlat ──
   socket.on('restart-game', ({ code }) => {
     const room = rooms.get(code);
     if (!room) return;
@@ -148,7 +142,6 @@ io.on('connection', (socket) => {
     io.to(code).emit('game-restart', { gameConfig: fullConfig });
   });
 
-  // ── Bağlantı koptu ──
   socket.on('disconnect', () => {
     removeFromQueue(socket.id);
     const code = socket.data.roomCode;
