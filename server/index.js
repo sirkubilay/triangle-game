@@ -4,9 +4,12 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
+const ALLOWED_ORIGINS = ['https://triangle-game.vercel.app', 'http://localhost:5173'];
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: { origin: '*' } });
+const io = new Server(httpServer, {
+  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
+});
 
 const rooms = new Map();
 const matchmakingQueue = []; // { socketId, playerName, gameConfig }
