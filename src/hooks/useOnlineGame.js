@@ -77,11 +77,11 @@ export function useOnlineGame() {
       setStatus('waiting');
     });
 
-    socket.on('game-start', ({ gameConfig, playerNum }) => {
+    socket.on('game-start', ({ gameConfig, playerNum, code }) => {
       setMyPlayerNum(playerNum);
       setGs(buildState(gameConfig));
       configRef.current = gameConfig;
-      setRoomCode(prev => prev || '');
+      if (code) setRoomCode(code);
       setStatus('playing');
     });
 

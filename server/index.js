@@ -73,8 +73,8 @@ io.on('connection', (socket) => {
       playerNames: { 1: room.players[0].name, 2: room.players[1].name },
     };
 
-    io.to(room.players[0].id).emit('game-start', { gameConfig: fullConfig, playerNum: 1 });
-    io.to(room.players[1].id).emit('game-start', { gameConfig: fullConfig, playerNum: 2 });
+    io.to(room.players[0].id).emit('game-start', { gameConfig: fullConfig, playerNum: 1, code: code.toUpperCase() });
+    io.to(room.players[1].id).emit('game-start', { gameConfig: fullConfig, playerNum: 2, code: code.toUpperCase() });
     console.log(`Oyun başladı: ${code.toUpperCase()}`);
   });
 
@@ -113,8 +113,8 @@ io.on('connection', (socket) => {
         playerNames: { 1: p1.playerName, 2: p2.playerName },
       };
 
-      io.to(p1.socketId).emit('game-start', { gameConfig: fullConfig, playerNum: 1 });
-      io.to(p2.socketId).emit('game-start', { gameConfig: fullConfig, playerNum: 2 });
+      io.to(p1.socketId).emit('game-start', { gameConfig: fullConfig, playerNum: 1, code });
+      io.to(p2.socketId).emit('game-start', { gameConfig: fullConfig, playerNum: 2, code });
       console.log(`Eşleşme bulundu: ${code} — ${p1.playerName} vs ${p2.playerName}`);
     }
   });
