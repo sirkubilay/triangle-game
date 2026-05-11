@@ -57,9 +57,10 @@ function buildInitialState(cfg) {
 }
 
 export function useGame(config) {
-  const cfgRef       = useRef(config);
-  const [gs, setGs]  = useState(() => buildInitialState(config));
+  const cfgRef          = useRef(config);
+  const [gs, setGs]     = useState(() => buildInitialState(config));
   const aiTimerRef      = useRef(null);
+  const aiMoveInFlight  = useRef(false);
   const statsWritten    = useRef(false);
   const undoStack       = useRef([]);
   const timedOutCounts  = useRef({ 1: 0, 2: 0 });
@@ -83,16 +84,22 @@ export function useGame(config) {
 
   // AI turn
   useEffect(() => {
-    if (!isAITurn) return;
+    if (!isAITurn) { aiMoveInFlight.current = false; return; }
+    if (aiMoveInFlight.current) return;
+    aiMoveInFlight.current = true;
     aiTimerRef.current = setTimeout(() => {
       setGs(prev => {
+        aiMoveInFlight.current = false;
         if (!prev || prev.phase !== 'playing' || prev.currentPlayer !== 2) return prev;
         const move = getAIMove(prev.lines, prev.points, prev.difficulty);
         if (!move) return prev;
         return applyMove(prev, move.p1, move.p2);
       });
     }, AI_DELAY);
-    return () => clearTimeout(aiTimerRef.current);
+    return () => {
+      clearTimeout(aiTimerRef.current);
+      aiMoveInFlight.current = false;
+    };
   }, [isAITurn, gs?.lines?.length]);
 
   // Per-turn timer (not used in timed or daily modes)

@@ -140,17 +140,39 @@ export function isMoveLegal(lines, points, p1Id, p2Id) {
 }
 
 // Bir kenarın alt-parçası mı?
-// Her iki uç nokta da aynı mevcut kenar üzerindeyse (uç ya da iç) → true
+// Durum A: her iki uç nokta tek bir mevcut çizgi üzerindeyse → true
+// Durum B: segment, birden fazla ardışık doğrusal çizgiyle tamamen kaplıysa → true
+//   (örn. 0-1 ve 1-2 varken 0-2 çizmek istemek)
 export function isSubsegment(lines, points, p1Id, p2Id) {
   const pt1 = points[p1Id];
   const pt2 = points[p2Id];
+
+  // Durum A
   for (const line of lines) {
     const lp1 = points[line.p1], lp2 = points[line.p2];
     const p1on = (line.p1 === p1Id || line.p2 === p1Id) || pointOnSegmentInterior(pt1, lp1, lp2);
     const p2on = (line.p1 === p2Id || line.p2 === p2Id) || pointOnSegmentInterior(pt2, lp1, lp2);
     if (p1on && p2on) return true;
   }
-  return false;
+
+  // Durum B: segment üzerindeki tüm noktaları topla, sırala, ardışık çiftleri kontrol et
+  const onSeg = [p1Id];
+  for (const p of points) {
+    if (p.id !== p1Id && p.id !== p2Id && pointOnSegmentInterior(p, pt1, pt2))
+      onSeg.push(p.id);
+  }
+  onSeg.push(p2Id);
+  if (onSeg.length <= 2) return false; // ara nokta yok, Durum A halletti
+
+  onSeg.sort((a, b) =>
+    Math.hypot(points[a].x - pt1.x, points[a].y - pt1.y) -
+    Math.hypot(points[b].x - pt1.x, points[b].y - pt1.y)
+  );
+
+  for (let i = 0; i < onSeg.length - 1; i++) {
+    if (!lineExists(lines, onSeg[i], onSeg[i + 1])) return false;
+  }
+  return true;
 }
 
 // a ile b arasında kenar var mı? (doğrudan çizgi VEYA aynı çizgi üzerinde alt-segment)
