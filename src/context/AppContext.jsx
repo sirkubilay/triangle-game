@@ -5,7 +5,7 @@ import { loadAchievements, unlockAchievement as unlockAchievementUtil, ACHIEVEME
 
 const AppContext = createContext(null);
 
-const THEMES = ['gece', 'buz', 'alev'];
+const THEMES = ['gece', 'buz', 'alev', 'orman', 'safak'];
 
 function readUrlRoom() {
   const p = new URLSearchParams(window.location.search).get('room');

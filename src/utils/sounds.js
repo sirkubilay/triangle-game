@@ -66,3 +66,36 @@ export function playGameLose() {
   const c = ac();
   [392, 349, 311, 261].forEach((f, i) => tone(f, 'triangle', c.currentTime + i * 0.12, 0.35, 0.18));
 }
+
+export function playPowerUp() {
+  if (muted) return;
+  const c = ac();
+  [440, 660, 880].forEach((f, i) => tone(f, 'sine', c.currentTime + i * 0.06, 0.15, 0.2));
+}
+
+export function playHatTrick() {
+  if (muted) return;
+  const c = ac();
+  [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 'sine', c.currentTime + i * 0.06, 0.3, 0.22));
+  tone(1319, 'sine', c.currentTime + 0.35, 0.45, 0.28);
+}
+
+export function playChatMessage() {
+  if (muted) return;
+  const c = ac();
+  tone(880, 'sine', c.currentTime, 0.07, 0.1);
+  tone(1100, 'sine', c.currentTime + 0.07, 0.1, 0.08);
+}
+
+export function playAchievement() {
+  if (muted) return;
+  const c = ac();
+  [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 'sine', c.currentTime + i * 0.08, 0.35, 0.2));
+  tone(1047, 'sine', c.currentTime + 0.4, 0.5, 0.18);
+}
+
+export function playBlockTurn() {
+  if (muted) return;
+  const c = ac();
+  [300, 200].forEach((f, i) => tone(f, 'sawtooth', c.currentTime + i * 0.1, 0.15, 0.18));
+}

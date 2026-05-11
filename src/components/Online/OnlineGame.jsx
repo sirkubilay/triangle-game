@@ -6,7 +6,7 @@ import TurnBanner from '../Game/TurnBanner';
 import GameOverModal from '../Game/GameOverModal';
 import ChatPanel from './ChatPanel';
 
-export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, onRestart, onLeave, chatMessages, onSendChat }) {
+export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, onRestart, onLeave, chatMessages, onSendChat, rematchState, rematchFrom, onAcceptRestart, onDeclineRestart }) {
   const [muted, setMuted] = useState(isMuted());
   if (!gs) return null;
   const lastScoredCount = gs.newTriangleIds?.length ?? 0;
@@ -39,8 +39,42 @@ export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, on
 
       <div className="shrink-0 h-4" />
 
-      {gs.phase === 'over' && (
+      {gs.phase === 'over' && rematchState === 'idle' && (
         <GameOverModal gs={gs} onRestart={onRestart} onMenu={onLeave} />
+      )}
+
+      {/* Rematç bekleniyor */}
+      {gs.phase === 'over' && rematchState === 'requested' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm">
+          <div className="glass rounded-3xl p-8 max-w-xs w-full mx-4 text-center border border-slate-700/50">
+            <div className="text-4xl mb-3 animate-pulse">⏳</div>
+            <p className="text-white font-bold mb-1">Rematç istendi</p>
+            <p className="text-slate-400 text-sm">Rakip yanıt bekliyor…</p>
+          </div>
+        </div>
+      )}
+
+      {/* Rematç teklifi geldi */}
+      {gs.phase === 'over' && rematchState === 'pending' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm">
+          <div className="glass rounded-3xl p-8 max-w-xs w-full mx-4 text-center border border-indigo-500/40">
+            <div className="text-4xl mb-3">🤝</div>
+            <p className="text-white font-bold mb-1">Rematç Teklifi</p>
+            <p className="text-slate-400 text-sm mb-6">
+              <span className="text-indigo-300 font-semibold">{rematchFrom}</span> tekrar oynamak istiyor!
+            </p>
+            <div className="flex gap-3">
+              <button onClick={onDeclineRestart}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 font-semibold text-sm hover:border-slate-500 transition-colors">
+                Reddet
+              </button>
+              <button onClick={onAcceptRestart}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-sm transition-colors">
+                Kabul Et!
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <ChatPanel

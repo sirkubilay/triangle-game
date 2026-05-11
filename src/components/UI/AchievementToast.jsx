@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ACHIEVEMENTS } from '../../utils/achievements';
+import { playAchievement } from '../../utils/sounds';
 
 export default function AchievementToast({ ids = [], onDismiss }) {
   const [visible, setVisible] = useState(true);
@@ -8,6 +9,7 @@ export default function AchievementToast({ ids = [], onDismiss }) {
   useEffect(() => {
     if (!ids.length) return;
     setVisible(true);
+    playAchievement();
     const t = setTimeout(() => {
       setVisible(false);
       setTimeout(() => onDismiss?.(), 400);

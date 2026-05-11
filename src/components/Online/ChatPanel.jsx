@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
+import { playChatMessage } from '../../utils/sounds';
 
 const QUICK = ['👍', '😂', '🔥', '😮', '🎉', '😢'];
+
+function msgTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
 
 export default function ChatPanel({ messages, onSend, myPlayerNum, playerColors, playerNames }) {
   const [open, setOpen]     = useState(false);
@@ -11,8 +18,12 @@ export default function ChatPanel({ messages, onSend, myPlayerNum, playerColors,
 
   useEffect(() => {
     if (messages.length > prevLen.current) {
-      if (!open) setUnread(u => u + (messages.length - prevLen.current));
-      else if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+      if (!open) {
+        setUnread(u => u + (messages.length - prevLen.current));
+        playChatMessage();
+      } else if (listRef.current) {
+        listRef.current.scrollTop = listRef.current.scrollHeight;
+      }
     }
     prevLen.current = messages.length;
   }, [messages.length, open]);
@@ -29,6 +40,7 @@ export default function ChatPanel({ messages, onSend, myPlayerNum, playerColors,
     if (!m) return;
     onSend(m);
     setText('');
+    if (listRef.current) setTimeout(() => { listRef.current.scrollTop = listRef.current.scrollHeight; }, 50);
   }
 
   const myColor  = playerColors?.[myPlayerNum]  ?? '#818cf8';
@@ -57,10 +69,10 @@ export default function ChatPanel({ messages, onSend, myPlayerNum, playerColors,
               const color = isMe ? myColor : oppColor;
               return (
                 <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className="max-w-[80%]">
+                  <div className="max-w-[85%]">
                     {!isMe && (
                       <div className="text-[10px] mb-0.5" style={{ color: oppColor }}>
-                        {playerNames?.[oppNum] ?? `P${oppNum}`}
+                        {m.playerName ?? playerNames?.[oppNum] ?? `P${oppNum}`}
                       </div>
                     )}
                     <div
@@ -69,6 +81,7 @@ export default function ChatPanel({ messages, onSend, myPlayerNum, playerColors,
                     >
                       {m.message}
                     </div>
+                    <div className="text-[9px] text-slate-700 mt-0.5 px-1">{msgTime(m.sentAt)}</div>
                   </div>
                 </div>
               );

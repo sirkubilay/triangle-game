@@ -84,8 +84,16 @@ function Empty({ text }) {
 
 // ── Sekmeler ─────────────────────────────────────────────────
 
+function currentStreak(history = []) {
+  let s = 0;
+  for (const e of history) { if (e.outcome === 'win') s++; else break; }
+  return s;
+}
+
 function TabGenel({ stats }) {
   const h = stats.history ?? [];
+  const streak = currentStreak(h);
+  const best   = stats.bestWinStreak ?? 0;
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
@@ -94,6 +102,21 @@ function TabGenel({ stats }) {
         <BigStat value={stats.wins}           label="Galibiyet"   color="text-emerald-400" />
         <BigStat value={stats.losses}         label="Mağlubiyet"  color="text-rose-400" />
       </div>
+
+      {/* Seri */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className={`glass rounded-2xl p-4 text-center border ${streak > 0 ? 'border-orange-500/40 bg-orange-500/5' : 'border-slate-700/50'}`}>
+          <div className={`text-3xl font-black ${streak > 0 ? 'text-orange-400' : 'text-white'}`}>
+            {streak > 0 ? `🔥 ${streak}` : streak}
+          </div>
+          <div className="text-xs text-slate-500 mt-0.5">Mevcut Seri</div>
+        </div>
+        <div className={`glass rounded-2xl p-4 text-center border ${best > 0 ? 'border-amber-500/40 bg-amber-500/5' : 'border-slate-700/50'}`}>
+          <div className={`text-3xl font-black ${best > 0 ? 'text-amber-400' : 'text-white'}`}>{best}</div>
+          <div className="text-xs text-slate-500 mt-0.5">En İyi Seri</div>
+        </div>
+      </div>
+
       <div className="glass rounded-2xl p-4 border border-slate-700/50">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Genel Kazanma Oranı</p>
         <WinBar wins={stats.wins} played={stats.totalGames - (stats.draws ?? 0)} />

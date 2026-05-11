@@ -73,19 +73,20 @@ const TABS = [
 ];
 
 export default function OnlineLobby() {
-  const { goToMenu, initialRoomCode } = useApp();
+  const { goToMenu, initialRoomCode, profile } = useApp();
   const {
     status, roomCode, myPlayerNum, gs, error, isMyTurn,
     chatMessages, leaderboard,
+    rematchState, rematchFrom,
     createRoom, joinRoom, findMatch, cancelMatch,
-    handlePointClick, requestRestart, sendChat, fetchLeaderboard, leave,
+    handlePointClick, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
   } = useOnlineGame();
 
   const [tab,        setTab]    = useState(initialRoomCode ? 'join' : 'quick');
-  const [playerName, setName]   = useState('');
+  const [playerName, setName]   = useState(profile?.name ?? '');
   const [joinCode,   setCode]   = useState(initialRoomCode || '');
   const [pointCount, setPoints] = useState(10);
-  const [myColor,    setMyColor]   = useState(DEFAULT_COLORS[1]);
+  const [myColor,    setMyColor]   = useState(profile?.color ?? DEFAULT_COLORS[1]);
   const [oppColor,   setOppColor]  = useState(DEFAULT_COLORS[2]);
   const [lbLoading,  setLbLoading] = useState(false);
 
@@ -109,6 +110,8 @@ export default function OnlineLobby() {
         gs={gs} myPlayerNum={myPlayerNum} isMyTurn={isMyTurn}
         onPointClick={handlePointClick} onRestart={requestRestart} onLeave={handleLeave}
         chatMessages={chatMessages} onSendChat={sendChat}
+        rematchState={rematchState} rematchFrom={rematchFrom}
+        onAcceptRestart={acceptRestart} onDeclineRestart={declineRestart}
       />
     );
   }

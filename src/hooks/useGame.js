@@ -5,7 +5,7 @@ import {
 } from '../utils/triangleLogic';
 import { getAIMove } from '../utils/aiLogic';
 import { updateStatsAfterGame, updateFriendResult } from '../utils/storage';
-import { playLineDraw, playTriangle, playUndo, playTimerWarning, playTimerEnd, playGameWin, playGameLose } from '../utils/sounds';
+import { playLineDraw, playTriangle, playHatTrick, playUndo, playTimerWarning, playTimerEnd, playGameWin, playGameLose, playBlockTurn } from '../utils/sounds';
 import { DEFAULT_COLORS } from '../utils/colors';
 
 const AI_DELAY  = 900;
@@ -43,10 +43,11 @@ function buildInitialState(cfg) {
     layout: cfg.layout ?? 'random',
     // Power-ups
     powerUps: cfg.powerUps ? {
-      1: { doubleScore: 1, extraTurn: 1 },
-      2: { doubleScore: 1, extraTurn: 1 },
+      1: { doubleScore: 1, extraTurn: 1, blockTurn: 1 },
+      2: { doubleScore: 1, extraTurn: 1, blockTurn: 0 },
     } : null,
     armedPowerUp: null,
+    blockedPlayer: null,
     // Daily puzzle move tracking
     moveLimit: cfg.mode === 'daily' ? (cfg.moveLimit ?? 18) : null,
     movesUsed: 0,
@@ -190,11 +191,14 @@ export function useGame(config) {
     const armed = prev.armedPowerUp;
     const hasDouble = armed === 'doubleScore' && prev.powerUps?.[prev.currentPlayer]?.doubleScore > 0;
     const hasExtra  = armed === 'extraTurn'   && prev.powerUps?.[prev.currentPlayer]?.extraTurn  > 0;
+    const hasBlock  = armed === 'blockTurn'   && prev.powerUps?.[prev.currentPlayer]?.blockTurn  > 0;
 
     const effectiveScore = scored * (hasDouble ? 2 : 1);
     const updatedScores  = { ...prev.scores, [prev.currentPlayer]: prev.scores[prev.currentPlayer] + effectiveScore };
 
-    if (scored > 0) playTriangle(scored); else playLineDraw();
+    if (scored >= 3) playHatTrick();
+    else if (scored > 0) playTriangle(scored);
+    else playLineDraw();
 
     // Consume power-up
     let newPowerUps = prev.powerUps;
@@ -206,6 +210,7 @@ export function useGame(config) {
         [cp]: { ...prev.powerUps[cp], [armed]: Math.max(0, prev.powerUps[cp][armed] - 1) },
       };
     }
+    if (hasBlock) playBlockTurn();
 
     // Track max triangles in one turn
     const newMaxTri = Math.max(prev.maxTrianglesInOneTurn ?? 0, scored);
@@ -238,9 +243,12 @@ export function useGame(config) {
     // Next player: scored → stay, extraTurn+no score → stay, else → switch
     const stayNormal = scored > 0 && !over;
     const stayExtra  = hasExtra && scored === 0 && !over;
-    // In timed single-player mode, always stay on player 1
     const isSinglePlayer = prev.mode === 'timeAttack' || prev.mode === 'daily';
-    const nextPlayer = isSinglePlayer ? 1 : ((stayNormal || stayExtra) ? prev.currentPlayer : (prev.currentPlayer === 1 ? 2 : 1));
+    const rawNext = isSinglePlayer ? 1 : ((stayNormal || stayExtra) ? prev.currentPlayer : (prev.currentPlayer === 1 ? 2 : 1));
+    // blockTurn: if opponent is blocked, skip them (give one more turn to current player)
+    const oppBlocked = !over && !isSinglePlayer && hasBlock && rawNext !== prev.currentPlayer;
+    const nextPlayer = oppBlocked ? prev.currentPlayer : rawNext;
+    const newBlockedPlayer = oppBlocked ? rawNext : null;
 
     const aiTurnVersion = (!over && nextPlayer === 2)
       ? (prev.aiTurnVersion ?? 0) + 1
@@ -256,6 +264,7 @@ export function useGame(config) {
       newLineIds: [newLine.id], newTriangleIds: newTris.map(t => t.id),
       powerUps: newPowerUps,
       armedPowerUp: null,
+      blockedPlayer: newBlockedPlayer ?? null,
       maxTrianglesInOneTurn: newMaxTri,
       powerUsed: newPowerUsed,
       movesUsed: newMovesUsed,

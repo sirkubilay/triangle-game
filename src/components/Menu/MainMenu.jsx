@@ -7,9 +7,11 @@ import { generateDailyPoints, loadDailyResult, DAILY_MOVE_LIMIT } from '../../ut
 import { DEFAULT_COLORS } from '../../utils/colors';
 
 const THEME_META = {
-  gece: { label: 'Gece', dot: '#818cf8' },
-  buz:  { label: 'Buz',  dot: '#38bdf8' },
-  alev: { label: 'Alev', dot: '#fb923c' },
+  gece:  { label: 'Gece',  dot: '#818cf8' },
+  buz:   { label: 'Buz',   dot: '#38bdf8' },
+  alev:  { label: 'Alev',  dot: '#fb923c' },
+  orman: { label: 'Orman', dot: '#34d399' },
+  safak: { label: 'Şafak', dot: '#c084fc' },
 };
 
 function TrigonLogo({ size = 72 }) {

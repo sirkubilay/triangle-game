@@ -27,6 +27,22 @@
   --c-glass-border: rgba(180, 70, 0, 0.25);
 }
 
+[data-theme="orman"] {
+  --c-bg: #071a0b;
+  --c-card: #0e2d14;
+  --c-border: #1a5c26;
+  --c-glass-bg: rgba(14, 45, 20, 0.90);
+  --c-glass-border: rgba(52, 211, 153, 0.18);
+}
+
+[data-theme="safak"] {
+  --c-bg: #130818;
+  --c-card: #1e0f28;
+  --c-border: #4a1a6b;
+  --c-glass-bg: rgba(30, 15, 40, 0.90);
+  --c-glass-border: rgba(167, 70, 200, 0.20);
+}
+
 body {
   background-color: var(--c-bg);
   color: #f8fafc;

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { ACHIEVEMENTS } from '../../utils/achievements';
@@ -10,6 +11,7 @@ function formatDate(iso) {
 
 export default function AchievementsPanel() {
   const { goToMenu, achievements } = useApp();
+  const [revealedId, setRevealedId] = useState(null);
   const unlockedCount = Object.keys(achievements).length;
 
   return (
@@ -48,16 +50,21 @@ export default function AchievementsPanel() {
             const date = achievements[ach.id];
             const unlocked = !!date;
 
+            const isRevealed = revealedId === ach.id;
+
             return (
               <motion.div
                 key={ach.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.04 }}
+                onClick={() => !unlocked && setRevealedId(isRevealed ? null : ach.id)}
                 className={`glass rounded-2xl p-4 border transition-all ${
                   unlocked
                     ? 'border-indigo-500/40 bg-indigo-500/5'
-                    : 'border-slate-700/30 opacity-50'
+                    : isRevealed
+                      ? 'border-amber-500/50 bg-amber-500/5 opacity-80 cursor-pointer'
+                      : 'border-slate-700/30 opacity-50 cursor-pointer'
                 }`}
               >
                 <div className={`text-3xl mb-2 ${unlocked ? '' : 'grayscale'}`}>
@@ -66,9 +73,12 @@ export default function AchievementsPanel() {
                 <div className={`text-sm font-bold mb-1 ${unlocked ? 'text-white' : 'text-slate-500'}`}>
                   {ach.title}
                 </div>
-                <div className="text-xs text-slate-600 leading-tight">
-                  {unlocked ? ach.desc : '???'}
+                <div className={`text-xs leading-tight ${isRevealed && !unlocked ? 'text-amber-400/80' : 'text-slate-600'}`}>
+                  {unlocked ? ach.desc : isRevealed ? ach.hint : '???'}
                 </div>
+                {!unlocked && !isRevealed && (
+                  <div className="text-[10px] text-slate-700 mt-1">Nasıl? →</div>
+                )}
                 {unlocked && date && (
                   <div className="text-xs text-indigo-400/70 mt-2 font-medium">
                     {formatDate(date)}

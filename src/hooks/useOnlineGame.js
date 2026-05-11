@@ -55,13 +55,15 @@ function applyMove(prev, rawP1, rawP2) {
 }
 
 export function useOnlineGame() {
-  const [status,      setStatus]      = useState('idle');
-  const [roomCode,    setRoomCode]    = useState('');
-  const [myPlayerNum, setMyPlayerNum] = useState(null);
-  const [gs,          setGs]          = useState(null);
-  const [error,       setError]       = useState('');
-  const [chatMessages, setChat]       = useState([]);
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [status,          setStatus]      = useState('idle');
+  const [roomCode,        setRoomCode]    = useState('');
+  const [myPlayerNum,     setMyPlayerNum] = useState(null);
+  const [gs,              setGs]          = useState(null);
+  const [error,           setError]       = useState('');
+  const [chatMessages,    setChat]        = useState([]);
+  const [leaderboard,     setLeaderboard] = useState([]);
+  const [rematchState,    setRematch]     = useState('idle'); // 'idle' | 'requested' | 'pending'
+  const [rematchFrom,     setRematchFrom] = useState('');
   const configRef     = useRef(null);
   const myNameRef     = useRef('');
   const resultReported = useRef(false);
@@ -90,8 +92,11 @@ export function useOnlineGame() {
       configRef.current = gameConfig;
       setStatus('playing');
       setChat([]);
+      setRematch('idle');
       resultReported.current = false;
     });
+    socket.on('restart-request', ({ from }) => { setRematch('pending'); setRematchFrom(from); });
+    socket.on('restart-declined', () => { setRematch('idle'); });
     socket.on('player-left', () => setStatus('disconnected'));
     socket.on('join-error',  ({ msg }) => { setError(msg); setStatus('idle'); });
     socket.on('chat-message', (msg) => { setChat(prev => [...prev.slice(-49), msg]); });
@@ -100,6 +105,7 @@ export function useOnlineGame() {
     return () => {
       socket.off('room-created'); socket.off('game-start');
       socket.off('opponent-move'); socket.off('game-restart');
+      socket.off('restart-request'); socket.off('restart-declined');
       socket.off('player-left'); socket.off('join-error');
       socket.off('chat-message'); socket.off('leaderboard');
     };
@@ -156,7 +162,18 @@ export function useOnlineGame() {
   }, [gs, myPlayerNum, roomCode]);
 
   const requestRestart = useCallback(() => {
+    setRematch('requested');
     getSocket().emit('restart-game', { code: roomCode });
+  }, [roomCode]);
+
+  const acceptRestart = useCallback(() => {
+    setRematch('requested');
+    getSocket().emit('restart-game', { code: roomCode });
+  }, [roomCode]);
+
+  const declineRestart = useCallback(() => {
+    setRematch('idle');
+    getSocket().emit('decline-restart', { code: roomCode });
   }, [roomCode]);
 
   const sendChat = useCallback((message) => {
@@ -178,7 +195,8 @@ export function useOnlineGame() {
   return {
     status, roomCode, myPlayerNum, gs, error, isMyTurn,
     chatMessages, leaderboard,
+    rematchState, rematchFrom,
     createRoom, joinRoom, findMatch, cancelMatch,
-    handlePointClick, requestRestart, sendChat, fetchLeaderboard, leave,
+    handlePointClick, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
   };
 }

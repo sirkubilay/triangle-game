@@ -154,13 +154,31 @@ io.on('connection', (socket) => {
   socket.on('restart-game', ({ code }) => {
     const room = rooms.get(code);
     if (!room) return;
-    const points = pointsForConfig(room.gameConfig);
-    room.points  = points;
-    const fullConfig = {
-      ...room.gameConfig, mode: 'online', points,
-      playerNames: { 1: room.players[0].name, 2: room.players[1].name },
-    };
-    io.to(code).emit('game-restart', { gameConfig: fullConfig });
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player) return;
+
+    if (!room.restartVotes) room.restartVotes = new Set();
+    room.restartVotes.add(player.num);
+
+    if (room.restartVotes.size === 1) {
+      // Notify the other player that a rematch was requested
+      socket.to(code).emit('restart-request', { from: player.name });
+    } else if (room.restartVotes.size >= 2) {
+      room.restartVotes = null;
+      const points = pointsForConfig(room.gameConfig);
+      room.points  = points;
+      const fullConfig = {
+        ...room.gameConfig, mode: 'online', points,
+        playerNames: { 1: room.players[0].name, 2: room.players[1].name },
+      };
+      io.to(code).emit('game-restart', { gameConfig: fullConfig });
+    }
+  });
+
+  socket.on('decline-restart', ({ code }) => {
+    const room = rooms.get(code);
+    if (room) room.restartVotes = null;
+    socket.to(code).emit('restart-declined');
   });
 
   // Chat
@@ -174,6 +192,7 @@ io.on('connection', (socket) => {
       message: message.trim().slice(0, 80),
       playerNum: player.num,
       playerName: player.name,
+      sentAt: new Date().toISOString(),
     });
   });
 

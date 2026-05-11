@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import Button from '../UI/Button';
 import { getDailyStars } from '../../utils/daily';
 import { getDailyLeaderboard, getCachedUserId } from '../../utils/firestore';
+import { loadStats } from '../../utils/storage';
 
 const STAR_LABELS = ['', '⭐', '⭐⭐', '⭐⭐⭐'];
 
@@ -112,13 +113,34 @@ function DailyResult({ score, movesUsed, moveLimit }) {
   );
 }
 
+const MODE_LABEL = {
+  '1v1': '1v1',
+  vsAI: 'vs AI',
+  timeAttack: '⚡ Zaman Saldırısı',
+  daily: '📅 Günlük',
+  online: '🌐 Online',
+};
+
+const DIFF_LABEL = { easy: 'Kolay', medium: 'Orta', hard: 'Zor' };
+
+function currentStreak(history = []) {
+  let s = 0;
+  for (const e of history) { if (e.outcome === 'win') s++; else break; }
+  return s;
+}
+
 export default function GameOverModal({ gs, onRestart, onMenu }) {
   if (!gs || gs.phase !== 'over') return null;
-  const { winner, scores, playerNames, mode, playerColors } = gs;
+  const { winner, scores, playerNames, mode, playerColors, difficulty } = gs;
   const isDaily = mode === 'daily';
   const isDraw  = winner === 0;
   const p1Color = playerColors?.[1] ?? '#818cf8';
   const p2Color = playerColors?.[2] ?? '#fb7185';
+
+  const stats  = loadStats();
+  const streak = currentStreak(stats.history ?? []);
+  const best   = stats.bestWinStreak ?? 0;
+  const newBest = winner === 1 && streak > 0 && streak >= best;
 
   useEffect(() => {
     if (isDaily) return;
@@ -159,6 +181,21 @@ export default function GameOverModal({ gs, onRestart, onMenu }) {
           />
         ) : (
           <div className="text-center">
+            {/* Mod etiketi */}
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <span className="text-xs text-slate-500 bg-slate-800 border border-slate-700 rounded-full px-2.5 py-0.5">
+                {MODE_LABEL[mode] ?? mode}
+              </span>
+              {mode === 'vsAI' && difficulty && (
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full border"
+                  style={{ color: difficulty === 'hard' ? '#f87171' : difficulty === 'medium' ? '#fbbf24' : '#34d399',
+                           borderColor: difficulty === 'hard' ? '#f8717140' : difficulty === 'medium' ? '#fbbf2440' : '#34d39940',
+                           background:  difficulty === 'hard' ? '#f8717110' : difficulty === 'medium' ? '#fbbf2410' : '#34d39910' }}>
+                  {DIFF_LABEL[difficulty]}
+                </span>
+              )}
+            </div>
+
             <motion.div
               className="text-6xl mb-3"
               animate={{ rotate: [0, -10, 10, -5, 5, 0] }}
@@ -166,10 +203,10 @@ export default function GameOverModal({ gs, onRestart, onMenu }) {
             >
               {emoji}
             </motion.div>
-            <h2 className="text-2xl font-black text-white mb-2">{headline}</h2>
-            <p className="text-slate-400 text-sm mb-6">{sub}</p>
+            <h2 className="text-2xl font-black text-white mb-1">{headline}</h2>
+            <p className="text-slate-400 text-sm mb-4">{sub}</p>
 
-            <div className="flex gap-3 mb-6">
+            <div className="flex gap-3 mb-4">
               {[1, 2].map(id => (
                 <div key={id} className="flex-1 rounded-xl py-3 border"
                   style={{
@@ -178,19 +215,38 @@ export default function GameOverModal({ gs, onRestart, onMenu }) {
                   }}>
                   <div className="text-xs font-medium mb-1 px-2 truncate"
                     style={{ color: playerColors?.[id] ?? (id === 1 ? '#818cf8' : '#fb7185') }}>
-                    {playerNames[id]}{mode === 'vsAI' && id === 2 ? ' (AI)' : ''}
+                    {playerNames[id]}{mode === 'vsAI' && id === 2 ? ' 🤖' : ''}
                   </div>
-                  <div className="text-3xl font-black"
-                    style={{ color: playerColors?.[id] ?? (id === 1 ? '#818cf8' : '#fb7185') }}>
+                  <motion.div
+                    className="text-3xl font-black"
+                    style={{ color: playerColors?.[id] ?? (id === 1 ? '#818cf8' : '#fb7185') }}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.4 + id * 0.1, type: 'spring', stiffness: 260, damping: 16 }}
+                  >
                     {scores[id]}
-                  </div>
+                  </motion.div>
                 </div>
               ))}
             </div>
+
+            {/* Seri bilgisi */}
+            {winner === 1 && streak > 0 && (
+              <motion.div
+                className={`rounded-xl px-4 py-2 mb-4 text-sm font-semibold ${
+                  newBest
+                    ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300'
+                    : 'bg-orange-500/10 border border-orange-500/30 text-orange-400'
+                }`}
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
+              >
+                {newBest ? `🏅 Yeni En İyi Seri: ${streak}!` : `🔥 Seri: ${streak} galibiyet`}
+              </motion.div>
+            )}
           </div>
         )}
 
-        <div className="flex gap-3 mt-4">
+        <div className="flex gap-3 mt-2">
           <Button onClick={onMenu}    variant="ghost"   className="flex-1">Ana Menü</Button>
           <Button onClick={onRestart} variant="primary" className="flex-1">
             {isDaily ? 'Tekrar Dene' : 'Tekrar Oyna'}

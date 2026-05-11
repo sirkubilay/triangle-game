@@ -3,14 +3,23 @@ import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { EMOJIS, saveProfile } from '../../utils/profile';
 import { COLOR_OPTIONS } from '../../utils/colors';
+import { ACHIEVEMENTS } from '../../utils/achievements';
 import Button from '../UI/Button';
 
 export default function ProfilePanel() {
-  const { goToMenu, profile, setProfile, stats } = useApp();
+  const { goToMenu, profile, setProfile, stats, achievements } = useApp();
   const [name, setName]   = useState(profile.name);
   const [emoji, setEmoji] = useState(profile.emoji);
   const [color, setColor] = useState(profile.color);
   const [saved, setSaved] = useState(false);
+
+  const achUnlocked = Object.keys(achievements ?? {});
+  const lastAch = achUnlocked.length > 0
+    ? ACHIEVEMENTS.find(a => a.id === achUnlocked.reduce((latest, id) => {
+        const ts = achievements[id] ?? '';
+        return ts > (achievements[latest] ?? '') ? id : latest;
+      }, achUnlocked[0]))
+    : null;
 
   function handleSave() {
     const p = { name: name.trim() || 'Oyuncu', emoji, color };
@@ -81,7 +90,7 @@ export default function ProfilePanel() {
         </div>
 
         {/* Stats summary */}
-        <div className="glass rounded-2xl p-4 mb-6 border border-slate-700/40">
+        <div className="glass rounded-2xl p-4 mb-4 border border-slate-700/40">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">İstatistikler</div>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
@@ -97,6 +106,31 @@ export default function ProfilePanel() {
               <div className="text-xs text-slate-600">Üçgen</div>
             </div>
           </div>
+        </div>
+
+        {/* Achievements summary */}
+        <div className="glass rounded-2xl p-4 mb-6 border border-indigo-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Başarımlar</div>
+            <div className="text-xs font-bold text-indigo-400">{achUnlocked.length} / {ACHIEVEMENTS.length}</div>
+          </div>
+          <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden mb-3">
+            <motion.div
+              className="h-full bg-indigo-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${(achUnlocked.length / ACHIEVEMENTS.length) * 100}%` }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+            />
+          </div>
+          {lastAch && (
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <span>{lastAch.icon}</span>
+              <span>Son: <span className="text-slate-300 font-medium">{lastAch.title}</span></span>
+            </div>
+          )}
+          {!lastAch && (
+            <div className="text-xs text-slate-700 text-center py-1">Henüz başarım yok — oynamaya başla!</div>
+          )}
         </div>
 
         <Button onClick={handleSave} variant="primary" size="lg" className="w-full">

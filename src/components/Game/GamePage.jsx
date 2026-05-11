@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../hooks/useGame';
 import { useApp } from '../../context/AppContext';
-import { isMuted, toggleMute } from '../../utils/sounds';
+import { isMuted, toggleMute, playPowerUp } from '../../utils/sounds';
 import { loadStats } from '../../utils/storage';
 import { checkAndUnlock } from '../../utils/achievements';
 import { saveDailyResult, getDailyStars } from '../../utils/daily';
@@ -110,6 +110,8 @@ export default function GamePage() {
       timeAttackScore: isTimeAttack ? (gs.scores?.[1] ?? 0) : 0,
       layout: gs.layout,
       dailyDone: isDailyMode,
+      playerScore: gs.scores?.[1] ?? 0,
+      opponentScore: gs.scores?.[2] ?? 0,
     };
     const unlocked = checkAndUnlock(context);
     if (unlocked.length > 0) {
@@ -182,18 +184,30 @@ export default function GamePage() {
             count={myPU?.doubleScore ?? 0}
             armed={gs.armedPowerUp === 'doubleScore'}
             disabled={(myPU?.doubleScore ?? 0) === 0}
-            onClick={() => armPowerUp('doubleScore')}
+            onClick={() => { armPowerUp('doubleScore'); playPowerUp(); }}
           />
           <PowerUpButton
             icon="🔄" label="Ekstra"
             count={myPU?.extraTurn ?? 0}
             armed={gs.armedPowerUp === 'extraTurn'}
             disabled={(myPU?.extraTurn ?? 0) === 0}
-            onClick={() => armPowerUp('extraTurn')}
+            onClick={() => { armPowerUp('extraTurn'); playPowerUp(); }}
+          />
+          <PowerUpButton
+            icon="🛑" label="Engel"
+            count={myPU?.blockTurn ?? 0}
+            armed={gs.armedPowerUp === 'blockTurn'}
+            disabled={(myPU?.blockTurn ?? 0) === 0}
+            onClick={() => { armPowerUp('blockTurn'); playPowerUp(); }}
           />
           {gs.armedPowerUp && (
             <span className="text-[10px] text-amber-400 animate-pulse ml-1">
-              {gs.armedPowerUp === 'doubleScore' ? '⚡ aktif' : '🔄 aktif'}
+              {{ doubleScore: '⚡ aktif', extraTurn: '🔄 aktif', blockTurn: '🛑 aktif' }[gs.armedPowerUp]}
+            </span>
+          )}
+          {gs.blockedPlayer && (
+            <span className="text-[10px] text-rose-400 ml-1">
+              P{gs.blockedPlayer} engellendi!
             </span>
           )}
         </div>

@@ -37,6 +37,7 @@ const defaultStats = () => ({
   draws: 0,
   totalTriangles: 0,
   vsAIWins: { easy: 0, medium: 0, hard: 0 },
+  bestWinStreak: 0,
   history: [],
   modes: defaultModes(),
 });
@@ -125,6 +126,14 @@ export function updateStatsAfterGame({
     playerNames,
   });
   if (s.history.length > 50) s.history = s.history.slice(0, 50);
+
+  // ── Win streak ───────────────────────────────────
+  let streak = 0;
+  for (const entry of s.history) {
+    if (entry.outcome === 'win') streak++;
+    else break;
+  }
+  if (streak > (s.bestWinStreak ?? 0)) s.bestWinStreak = streak;
 
   saveStats(s);
   return s;
