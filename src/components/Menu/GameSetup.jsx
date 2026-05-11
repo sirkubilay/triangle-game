@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import Button from '../UI/Button';
 import { COLOR_OPTIONS, DEFAULT_COLORS } from '../../utils/colors';
+import { generatePoints, generateGridPoints } from '../../utils/triangleLogic';
 
 const DIFFICULTIES = [
   { id: 'easy',   label: 'Kolay', icon: '😊', desc: 'Rastgele hamle yapar' },
@@ -12,19 +13,21 @@ const DIFFICULTIES = [
 
 const POINT_OPTIONS = [10, 14, 18];
 
+const GRID_OPTIONS = [
+  { rows: 3, cols: 3, label: '3×3', sub: 'Hızlı' },
+  { rows: 4, cols: 4, label: '4×4', sub: 'Normal' },
+  { rows: 5, cols: 5, label: '5×5', sub: 'Yoğun' },
+];
+
 function ColorRow({ label, selected, onSelect, exclude }) {
   return (
     <div>
       <div className="text-xs text-slate-600 mb-1.5">{label}</div>
       <div className="flex flex-wrap gap-2">
         {COLOR_OPTIONS.filter(c => c.hex !== exclude).map(c => (
-          <button
-            key={c.id}
-            onClick={() => onSelect(c.hex)}
-            title={c.name}
+          <button key={c.id} onClick={() => onSelect(c.hex)} title={c.name}
             className={`w-7 h-7 rounded-full border-2 transition-all ${selected === c.hex ? 'border-white scale-110' : 'border-transparent opacity-70 hover:opacity-100'}`}
-            style={{ background: c.hex }}
-          />
+            style={{ background: c.hex }} />
         ))}
       </div>
     </div>
@@ -33,33 +36,43 @@ function ColorRow({ label, selected, onSelect, exclude }) {
 
 export default function GameSetup() {
   const { goToMenu, startGame, friends } = useApp();
-  const [mode, setMode]         = useState(null);
-  const [difficulty, setDiff]   = useState('medium');
-  const [pointCount, setPoints] = useState(10);
-  const [p1Name, setP1Name]     = useState('Oyuncu 1');
-  const [p2Name, setP2Name]     = useState('Oyuncu 2');
+  const [mode,       setMode]    = useState(null);
+  const [difficulty, setDiff]    = useState('medium');
+  const [layout,     setLayout]  = useState('random'); // 'random' | 'grid'
+  const [pointCount, setPoints]  = useState(10);
+  const [gridSize,   setGrid]    = useState({ rows: 4, cols: 4 });
+  const [p1Name,     setP1Name]  = useState('Oyuncu 1');
+  const [p2Name,     setP2Name]  = useState('Oyuncu 2');
   const [selectedFriend, setFriend] = useState(null);
-  const [p1Color, setP1Color]   = useState(DEFAULT_COLORS[1]);
-  const [p2Color, setP2Color]   = useState(DEFAULT_COLORS[2]);
+  const [p1Color,    setP1Color] = useState(DEFAULT_COLORS[1]);
+  const [p2Color,    setP2Color] = useState(DEFAULT_COLORS[2]);
+  const [powerUps,   setPowerUps] = useState(false);
 
   function handleFriendSelect(f) { setFriend(f); setP2Name(f.name); }
 
   function handleStart() {
+    const isTimeAttack = mode === 'timeAttack';
+    const useGrid = layout === 'grid' && !isTimeAttack;
+    const points = useGrid
+      ? generateGridPoints(gridSize.rows, gridSize.cols)
+      : generatePoints(pointCount, 760, 500);
     startGame({
       mode,
       difficulty: mode === 'vsAI' ? difficulty : null,
-      pointCount,
+      layout: isTimeAttack ? 'random' : layout,
+      points,
       playerNames: {
         1: p1Name.trim() || 'Oyuncu 1',
-        2: mode === 'vsAI' ? 'Bilgisayar' : (p2Name.trim() || 'Oyuncu 2'),
+        2: mode === 'vsAI' ? 'Bilgisayar' : isTimeAttack ? '' : (p2Name.trim() || 'Oyuncu 2'),
       },
       playerColors: { 1: p1Color, 2: p2Color },
       friendId: selectedFriend?.id ?? null,
+      powerUps: isTimeAttack ? false : powerUps,
     });
   }
 
   return (
-    <div className="full-screen overflow-y-auto bg-slate-900">
+    <div className="full-screen overflow-y-auto bg-slate-900" style={{ backgroundColor: 'var(--c-bg)' }}>
       <motion.div
         className="w-full max-w-md mx-auto px-4 py-6"
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -74,8 +87,9 @@ export default function GameSetup() {
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">Oyun Modu</label>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { id: '1v1',  label: '2 Oyuncu',    icon: '👥', desc: 'Aynı cihazda' },
-              { id: 'vsAI', label: 'Bilgisayar',  icon: '🤖', desc: "AI'ya karşı oyna" },
+              { id: '1v1',        label: '2 Oyuncu',        icon: '👥', desc: 'Aynı cihazda' },
+              { id: 'vsAI',       label: 'Bilgisayar',      icon: '🤖', desc: "AI'ya karşı oyna" },
+              { id: 'timeAttack', label: 'Zaman Saldırısı', icon: '⚡', desc: '90 saniyede maksimum üçgen kapat' },
             ].map(m => (
               <button key={m.id} onClick={() => setMode(m.id)}
                 className={`glass rounded-2xl p-4 border-2 text-left transition-all ${mode === m.id ? 'border-indigo-500 bg-indigo-500/10' : 'border-transparent hover:border-slate-600'}`}>
@@ -105,7 +119,7 @@ export default function GameSetup() {
         )}
 
         {/* İsimler */}
-        {mode && (
+        {mode && mode !== 'timeAttack' && (
           <motion.div className="mb-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">Oyuncu Adları</label>
             <div className="space-y-2">
@@ -134,21 +148,14 @@ export default function GameSetup() {
           </motion.div>
         )}
 
-        {/* Renk Seçimi */}
+        {/* Renk */}
         {mode && (
           <motion.div className="mb-5 glass rounded-2xl p-4 border border-slate-700/40" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">🎨 Renk Seçimi</label>
             <div className="space-y-3">
-              <ColorRow
-                label={`${p1Name || 'Oyuncu 1'} rengi`}
-                selected={p1Color} onSelect={setP1Color} exclude={p2Color}
-              />
-              <ColorRow
-                label={`${mode === 'vsAI' ? 'Bilgisayar' : (p2Name || 'Oyuncu 2')} rengi`}
-                selected={p2Color} onSelect={setP2Color} exclude={p1Color}
-              />
+              <ColorRow label={`${p1Name || 'Oyuncu 1'} rengi`} selected={p1Color} onSelect={setP1Color} exclude={p2Color} />
+              <ColorRow label={`${mode === 'vsAI' ? 'Bilgisayar' : (p2Name || 'Oyuncu 2')} rengi`} selected={p2Color} onSelect={setP2Color} exclude={p1Color} />
             </div>
-            {/* Önizleme */}
             <div className="flex gap-2 mt-3">
               <div className="flex-1 h-1.5 rounded-full" style={{ background: p1Color }} />
               <div className="flex-1 h-1.5 rounded-full" style={{ background: p2Color }} />
@@ -156,21 +163,63 @@ export default function GameSetup() {
           </motion.div>
         )}
 
-        {/* Nokta sayısı */}
+        {/* Tahta Düzeni */}
         {mode && (
-          <motion.div className="mb-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">
-              Nokta Sayısı
-            </label>
-            <div className="flex gap-2">
-              {POINT_OPTIONS.map(n => (
-                <button key={n} onClick={() => setPoints(n)}
-                  className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
-                  {n}
-                  <div className="text-xs font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : 'Epik'}</div>
+          <motion.div className="mb-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">Tahta Düzeni</label>
+            <div className="flex rounded-xl bg-slate-800 p-1 mb-3">
+              {[{ id: 'random', label: '🎲 Rastgele' }, { id: 'grid', label: '⊞ Izgara' }].map(o => (
+                <button key={o.id} onClick={() => setLayout(o.id)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${layout === o.id ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>
+                  {o.label}
                 </button>
               ))}
             </div>
+
+            {layout === 'random' && (
+              <div className="flex gap-2">
+                {POINT_OPTIONS.map(n => (
+                  <button key={n} onClick={() => setPoints(n)}
+                    className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                    {n}
+                    <div className="text-xs font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : 'Epik'}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {layout === 'grid' && (
+              <div className="flex gap-2">
+                {GRID_OPTIONS.map(g => (
+                  <button key={g.label} onClick={() => setGrid({ rows: g.rows, cols: g.cols })}
+                    className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${gridSize.rows === g.rows ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                    {g.label}
+                    <div className="text-xs font-normal text-slate-600">{g.sub}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Güçlendirmeler */}
+        {mode && mode !== 'timeAttack' && (
+          <motion.div className="mb-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <button
+              onClick={() => setPowerUps(v => !v)}
+              className={`w-full glass rounded-2xl p-4 border-2 text-left transition-all flex items-center justify-between ${powerUps ? 'border-amber-500/60 bg-amber-500/8' : 'border-transparent hover:border-slate-600'}`}
+            >
+              <div>
+                <div className="text-sm font-bold text-white flex items-center gap-2">
+                  ⚡ Güçlendirmeler
+                  {powerUps && <span className="text-xs font-normal text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full">Açık</span>}
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">Çift Puan ve Ekstra Hamle güçleri</div>
+              </div>
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${powerUps ? 'border-amber-500 bg-amber-500' : 'border-slate-600'}`}>
+                {powerUps && <span className="text-white text-xs">✓</span>}
+              </div>
+            </button>
           </motion.div>
         )}
 

@@ -13,7 +13,18 @@
       "PowerShell(railway status *)",
       "PowerShell(winget install *)",
       "PowerShell(git *)",
-      "PowerShell(gh *)"
+      "PowerShell(gh *)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"https://triangle-game-production.up.railway.app/socket.io/?EIO=4&transport=polling\" -TimeoutSec 10; \"Status: $\\($r.StatusCode\\)\" } catch { \"Hata: $\\($_.Exception.Message\\)\" })",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"https://triangle-game-production.up.railway.app/socket.io/?EIO=4&transport=polling\" -TimeoutSec 10; \"Status: $\\($r.StatusCode\\) — $\\($r.Content.Substring\\(0,[Math]::Min\\(100,$r.Content.Length\\)\\)\\)\" } catch { \"Hata: $\\($_.Exception.Message\\)\" })",
+      "Bash(npm run *)",
+      "Bash(npx vite *)",
+      "Bash(npm install *)",
+      "Bash(New-Item -ItemType File -Path \"C:\\\\Users\\\\USER\\\\Desktop\\\\Yeni klasör\\\\src\\\\utils\\\\profile.js\" -Force)",
+      "Bash(Out-Null)",
+      "Bash(Write-Host \"done\")",
+      "Bash(dir C:\\\\Users\\\\USER\\\\Desktop\\\\Yeni klasör\\\\src\\\\components *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174)",
+      "Bash(git add *)"
     ]
   }
 }

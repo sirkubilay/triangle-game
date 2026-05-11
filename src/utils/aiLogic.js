@@ -13,10 +13,10 @@ function randomFrom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function bestScoringMove(moves, lines) {
+function bestScoringMove(moves, lines, points) {
   let best = [], max = 0;
   for (const m of moves) {
-    const n = findNewTriangles(lines, m.p1, m.p2).length;
+    const n = findNewTriangles(lines, m.p1, m.p2, points).length;
     if (n > max) { max = n; best = [m]; }
     else if (n === max && n > 0) best.push(m);
   }
@@ -31,14 +31,14 @@ export function getEasyMove(lines, points) {
 export function getMediumMove(lines, points) {
   const moves = shuffle(getAllPossibleMoves(lines, points));
   if (!moves.length) return null;
-  return bestScoringMove(moves, lines) ?? moves[0];
+  return bestScoringMove(moves, lines, points) ?? moves[0];
 }
 
 export function getHardMove(lines, points) {
   const moves = shuffle(getAllPossibleMoves(lines, points));
   if (!moves.length) return null;
 
-  const scoring = bestScoringMove(moves, lines);
+  const scoring = bestScoringMove(moves, lines, points);
   if (scoring) return scoring;
 
   const safe = moves.filter(m => opponentThreats(lines, m, points) === 0);

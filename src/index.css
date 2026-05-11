@@ -7,6 +7,24 @@
   --c-bg: #0f172a;
   --c-card: #1e293b;
   --c-border: #334155;
+  --c-glass-bg: rgba(30, 41, 59, 0.88);
+  --c-glass-border: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme="buz"] {
+  --c-bg: #060d1f;
+  --c-card: #0d1f3c;
+  --c-border: #1a3a6b;
+  --c-glass-bg: rgba(13, 31, 60, 0.90);
+  --c-glass-border: rgba(56, 130, 210, 0.18);
+}
+
+[data-theme="alev"] {
+  --c-bg: #1a0800;
+  --c-card: #2a1100;
+  --c-border: #5a2800;
+  --c-glass-bg: rgba(42, 17, 0, 0.90);
+  --c-glass-border: rgba(180, 70, 0, 0.25);
 }
 
 body {
@@ -34,6 +52,13 @@ body {
   to { stroke-dashoffset: 0; }
 }
 .line-enter { animation: drawLine 0.35s ease-out forwards; }
+
+@keyframes rejectPulse {
+  0%   { opacity: 0.85; stroke-width: 3; }
+  60%  { opacity: 0.4;  stroke-width: 2; }
+  100% { opacity: 0; }
+}
+.reject-line { animation: rejectPulse 0.55s ease-out forwards; pointer-events: none; }
 
 @keyframes triFill {
   from { opacity: 0; transform: scale(0.7); }
@@ -67,11 +92,73 @@ body {
 .pulse-glow { animation: pulse-glow 1.8s ease-in-out infinite; }
 
 .glass {
-  background: rgba(30, 41, 59, 0.88);
+  background: var(--c-glass-bg);
   backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.07);
+  border: 1px solid var(--c-glass-border);
 }
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #0f172a; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+/* === Splash Screen === */
+.splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+}
+
+@keyframes splashExit {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.splash-exit {
+  animation: splashExit 0.6s ease-in forwards;
+  pointer-events: none;
+}
+
+/* 1 — mountain outline draws in */
+@keyframes mtDraw {
+  from { stroke-dashoffset: 330; }
+  to   { stroke-dashoffset: 0; }
+}
+.mt-outline {
+  stroke-dasharray: 330;
+  stroke-dashoffset: 330;
+  animation: mtDraw 0.8s ease-out 0.05s forwards;
+}
+
+/* 2 — fill + snow fade in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.mt-fill {
+  opacity: 0;
+  animation: fadeIn 0.5s ease-out 0.55s forwards;
+}
+.mt-snow {
+  opacity: 0;
+  animation: fadeIn 0.35s ease-out 0.75s forwards;
+}
+
+/* 3 — text + divider appear */
+.logo-divider   { opacity: 0; animation: fadeIn 0.4s ease-out 0.8s  forwards; }
+.logo-text-main { opacity: 0; animation: fadeIn 0.4s ease-out 0.8s  forwards; }
+.logo-text-sub  { opacity: 0; animation: fadeIn 0.4s ease-out 0.95s forwards; }
+
+/* 4 — circle closes around everything */
+@keyframes circleDraw {
+  from { stroke-dashoffset: 553; }
+  to   { stroke-dashoffset: 0; }
+}
+.logo-circle {
+  stroke-dasharray: 553;
+  stroke-dashoffset: 553;
+  animation: circleDraw 0.85s ease-out 1.05s forwards;
+}

@@ -1,3 +1,15 @@
+export function generateGridPoints(rows, cols, width = 760, height = 500, padding = 60) {
+  const points = [];
+  const stepX = cols > 1 ? (width - 2 * padding) / (cols - 1) : 0;
+  const stepY = rows > 1 ? (height - 2 * padding) / (rows - 1) : 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      points.push({ id: r * cols + c, x: Math.round(padding + c * stepX), y: Math.round(padding + r * stepY) });
+    }
+  }
+  return points;
+}
+
 export function generatePoints(count, width = 760, height = 500, padding = 72) {
   const points = [];
   const minDist = Math.max(65, Math.min(width, height) / (count * 0.72));
@@ -33,6 +45,20 @@ function cross2d(o, a, b) {
   return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
 }
 
+// P noktasının A-B doğru parçasının iç kısmında olup olmadığını kontrol eder (uç noktalar dahil değil)
+// Grid koordinatlarındaki yuvarlama kaynaklı ~0.5px sapmayı tolere etmek için 8px tolerans kullanır
+export function pointOnSegmentInterior(p, a, b) {
+  if (p.x === a.x && p.y === a.y) return false;
+  if (p.x === b.x && p.y === b.y) return false;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return false;
+  const cross = dx * (p.y - a.y) - dy * (p.x - a.x);
+  if (cross * cross > 64 * len2) return false; // >8px uzakta → değil
+  const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+  return t > 0.001 && t < 0.999;
+}
+
 // İki doğru parçasının gerçek (uç nokta dışı) kesişimini kontrol eder
 export function segmentsIntersect(a1, a2, b1, b2) {
   const d1 = cross2d(b1, b2, a1);
@@ -47,36 +73,168 @@ export function segmentsIntersect(a1, a2, b1, b2) {
   return false; // ortak uç nokta veya paralel = kesişmez
 }
 
+// Önerilen çizgi (pt1→pt2) üzerinde veya yakınında (≤8px) bir uç nokta olan
+// kenarı "geçiş noktası" olarak sayar ve kesişim testinden hariç tutar.
+function isPassThrough(ep, pt1, pt2, dx, dy, len2) {
+  const cross = dx * (ep.y - pt1.y) - dy * (ep.x - pt1.x);
+  if (cross * cross > 64 * len2) return false; // >8px uzakta → geçiş değil
+  const t = ((ep.x - pt1.x) * dx + (ep.y - pt1.y) * dy) / len2;
+  return t > 0 && t < 1; // parçanın iç kısmında mı?
+}
+
+// Yeni çizgiyle kesişen mevcut çizgiyi döndürür (yoksa null)
+export function findConflictLine(lines, points, p1Id, p2Id) {
+  const pt1 = points[p1Id];
+  const pt2 = points[p2Id];
+  const dx = pt2.x - pt1.x, dy = pt2.y - pt1.y;
+  const len2 = dx * dx + dy * dy;
+  for (const line of lines) {
+    if (line.p1 === p1Id || line.p1 === p2Id ||
+        line.p2 === p1Id || line.p2 === p2Id) continue;
+    const lp1 = points[line.p1], lp2 = points[line.p2];
+    if (len2 > 0 && (isPassThrough(lp1, pt1, pt2, dx, dy, len2) || isPassThrough(lp2, pt1, pt2, dx, dy, len2))) continue;
+    const ldx = lp2.x - lp1.x, ldy = lp2.y - lp1.y, llen2 = ldx*ldx + ldy*ldy;
+    // Önerilen çizginin uç noktası mevcut çizgi üzerindeyse → geçiş noktası, gerçek kesişim değil
+    if (llen2 > 0 && (isPassThrough(pt1, lp1, lp2, ldx, ldy, llen2) || isPassThrough(pt2, lp1, lp2, ldx, ldy, llen2))) continue;
+    if (segmentsIntersect(pt1, pt2, lp1, lp2)) {
+      if (llen2 > 0 && points.some(p =>
+        p.id !== p1Id && p.id !== p2Id && p.id !== line.p1 && p.id !== line.p2 &&
+        isPassThrough(p, pt1, pt2, dx, dy, len2) &&
+        isPassThrough(p, lp1, lp2, ldx, ldy, llen2)
+      )) continue;
+      return line;
+    }
+  }
+  return null;
+}
+
 // Yeni çizgi (p1Id→p2Id) mevcut hiçbir çizgiyi kesiyor mu?
 export function isMoveLegal(lines, points, p1Id, p2Id) {
   const pt1 = points[p1Id];
   const pt2 = points[p2Id];
+  const dx = pt2.x - pt1.x, dy = pt2.y - pt1.y;
+  const len2 = dx * dx + dy * dy;
 
   for (const line of lines) {
     // Ortak uç nokta paylaşan çizgiler kesişmez, atla
     if (line.p1 === p1Id || line.p1 === p2Id ||
         line.p2 === p1Id || line.p2 === p2Id) continue;
 
-    if (segmentsIntersect(pt1, pt2, points[line.p1], points[line.p2])) return false;
+    const lp1 = points[line.p1], lp2 = points[line.p2];
+    // Kenarın uç noktası önerilen segment üzerinde/yakınındaysa → geçiş noktası, atla
+    if (len2 > 0 && (isPassThrough(lp1, pt1, pt2, dx, dy, len2) || isPassThrough(lp2, pt1, pt2, dx, dy, len2))) continue;
+    const ldx = lp2.x - lp1.x, ldy = lp2.y - lp1.y, llen2 = ldx*ldx + ldy*ldy;
+    // Önerilen çizginin uç noktası mevcut çizgi üzerindeyse → geçiş noktası, gerçek kesişim değil
+    if (llen2 > 0 && (isPassThrough(pt1, lp1, lp2, ldx, ldy, llen2) || isPassThrough(pt2, lp1, lp2, ldx, ldy, llen2))) continue;
+
+    if (segmentsIntersect(pt1, pt2, lp1, lp2)) {
+      if (llen2 > 0 && points.some(p =>
+        p.id !== p1Id && p.id !== p2Id && p.id !== line.p1 && p.id !== line.p2 &&
+        isPassThrough(p, pt1, pt2, dx, dy, len2) &&
+        isPassThrough(p, lp1, lp2, ldx, ldy, llen2)
+      )) continue;
+      return false;
+    }
   }
   return true;
 }
 
-export function findNewTriangles(existingLines, newP1, newP2) {
-  const nbrs1   = getNeighbors(newP1, existingLines);
-  const nbrs2Set = new Set(getNeighbors(newP2, existingLines));
-  const result  = [];
+// Bir kenarın alt-parçası mı?
+// Her iki uç nokta da aynı mevcut kenar üzerindeyse (uç ya da iç) → true
+export function isSubsegment(lines, points, p1Id, p2Id) {
+  const pt1 = points[p1Id];
+  const pt2 = points[p2Id];
+  for (const line of lines) {
+    const lp1 = points[line.p1], lp2 = points[line.p2];
+    const p1on = (line.p1 === p1Id || line.p2 === p1Id) || pointOnSegmentInterior(pt1, lp1, lp2);
+    const p2on = (line.p1 === p2Id || line.p2 === p2Id) || pointOnSegmentInterior(pt2, lp1, lp2);
+    if (p1on && p2on) return true;
+  }
+  return false;
+}
 
-  for (const c of nbrs1) {
-    if (nbrs2Set.has(c) && c !== newP1 && c !== newP2) {
-      const [a, b, d] = [newP1, newP2, c].sort((x, y) => x - y);
-      result.push({ p1: a, p2: b, p3: d });
+// Bir nokta için örtük komşu kümesi:
+// Durum A: nokta mevcut kenarın iç noktasıysa → o kenarın uç noktaları + diğer iç noktaları
+// Durum B: nokta mevcut kenarın uç noktasıysa → o kenarın ortasındaki noktalar
+function fullNeighbors(pId, existingLines, points) {
+  const nbrs = new Set(getNeighbors(pId, existingLines));
+  const pt = points[pId];
+  for (const line of existingLines) {
+    const lp1 = points[line.p1], lp2 = points[line.p2];
+    if (line.p1 !== pId && line.p2 !== pId) {
+      // Durum A: pId bu kenarın iç noktasıysa
+      if (pointOnSegmentInterior(pt, lp1, lp2)) {
+        nbrs.add(line.p1);
+        nbrs.add(line.p2);
+        // Durum C: aynı kenar üzerindeki diğer iç noktaları da komşu say
+        for (const p of points) {
+          if (p.id !== line.p1 && p.id !== line.p2 && p.id !== pId && pointOnSegmentInterior(p, lp1, lp2))
+            nbrs.add(p.id);
+        }
+      }
+    } else {
+      // Durum B: pId bu kenarın uç noktasıysa → iç noktaları komşu say
+      for (const p of points) {
+        if (p.id !== line.p1 && p.id !== line.p2 && pointOnSegmentInterior(p, lp1, lp2))
+          nbrs.add(p.id);
+      }
+    }
+  }
+  return nbrs;
+}
+
+export function findNewTriangles(existingLines, newP1, newP2, points) {
+  const result = [];
+  const seen   = new Set();
+
+  if (!points) {
+    // Geometri bilgisi yoksa basit komşu kontrolü
+    const nbrs1 = getNeighbors(newP1, existingLines);
+    const nbrs2Set = new Set(getNeighbors(newP2, existingLines));
+    for (const c of nbrs1) {
+      if (nbrs2Set.has(c) && c !== newP1 && c !== newP2) {
+        const [a, b, d] = [newP1, newP2, c].sort((x, y) => x - y);
+        result.push({ p1: a, p2: b, p3: d });
+      }
+    }
+    return result;
+  }
+
+  const pt1 = points[newP1], pt2 = points[newP2];
+
+  // Yeni kenar üzerindeki TÜM noktalar (uç noktalar + ara noktalar)
+  const segPts = [newP1];
+  for (const p of points) {
+    if (p.id !== newP1 && p.id !== newP2 && pointOnSegmentInterior(p, pt1, pt2))
+      segPts.push(p.id);
+  }
+  segPts.push(newP2);
+
+  // Her segment noktası için tam komşu kümesini önceden hesapla
+  const segNbrs = segPts.map(pId => [pId, fullNeighbors(pId, existingLines, points)]);
+
+  // Her E1-E2 çifti için ortak komşu ara → üçgen
+  for (let i = 0; i < segNbrs.length; i++) {
+    const [E1, n1] = segNbrs[i];
+    for (let j = i + 1; j < segNbrs.length; j++) {
+      const [E2, n2] = segNbrs[j];
+      for (const c of n1) {
+        if (!n2.has(c) || c === E1 || c === E2) continue;
+        const [a, b, d] = [E1, E2, c].sort((x, y) => x - y);
+        const key = `${a}-${b}-${d}`;
+        if (seen.has(key)) continue;
+        const pa = points[a], pb = points[b], pd = points[d];
+        const area = Math.abs((pb.x - pa.x) * (pd.y - pa.y) - (pd.x - pa.x) * (pb.y - pa.y));
+        if (area === 0) continue;
+        seen.add(key);
+        result.push({ p1: a, p2: b, p3: d });
+      }
     }
   }
   return result;
 }
 
-// Tüm yasal hamleler: çizgi yok + kesişme yok
+// Tüm yasal hamleler: çizgi yok + kesişme yok + alt-parça değil
 export function getAllPossibleMoves(lines, points) {
   const n = points.length;
   const existing = new Set(lines.map(l => lineKey(l.p1, l.p2)));
@@ -84,7 +242,7 @@ export function getAllPossibleMoves(lines, points) {
 
   for (let i = 0; i < n; i++)
     for (let j = i + 1; j < n; j++)
-      if (!existing.has(lineKey(i, j)) && isMoveLegal(lines, points, i, j))
+      if (!existing.has(lineKey(i, j)) && isMoveLegal(lines, points, i, j) && !isSubsegment(lines, points, i, j))
         moves.push({ p1: i, p2: j });
 
   return moves;
@@ -98,5 +256,21 @@ export function isGameOver(lines, points) {
 export function opponentThreats(currentLines, move, points) {
   const after = [...currentLines, { p1: move.p1, p2: move.p2 }];
   return getAllPossibleMoves(after, points)
-    .reduce((sum, m) => sum + findNewTriangles(after, m.p1, m.p2).length, 0);
+    .reduce((sum, m) => sum + findNewTriangles(after, m.p1, m.p2, points).length, 0);
+}
+
+// newTri'nin tüm köşeleri existingTri'nin sınırında (kenar uç noktası veya kenar iç noktası) ise
+// newTri, existingTri'nin içinde kalan bir alt-üçgendir → tekrar sayılmamalı
+export function isSubTriangleOf(newTri, existingTri, points) {
+  if (newTri.id === existingTri.id) return false;
+  const etVerts = new Set([existingTri.p1, existingTri.p2, existingTri.p3]);
+  const etEdges = [
+    [existingTri.p1, existingTri.p2],
+    [existingTri.p1, existingTri.p3],
+    [existingTri.p2, existingTri.p3],
+  ];
+  return [newTri.p1, newTri.p2, newTri.p3].every(pid =>
+    etVerts.has(pid) ||
+    etEdges.some(([a, b]) => pointOnSegmentInterior(points[pid], points[a], points[b]))
+  );
 }

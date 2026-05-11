@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { lineKey, lineExists, isMoveLegal } from '../../utils/triangleLogic';
+import { lineKey, lineExists, isMoveLegal, isSubsegment, findConflictLine } from '../../utils/triangleLogic';
 import { DEFAULT_COLORS } from '../../utils/colors';
 
 const VW = 760, VH = 500;
@@ -12,14 +12,18 @@ export default function GameBoard({ gs, onPointClick, isAITurn, hintMove = null 
   if (!gs) return null;
 
   const pColors = gs.playerColors ?? DEFAULT_COLORS;
-  const { points, lines, triangles, selectedPoint, currentPlayer, newLineIds = [], newTriangleIds = [] } = gs;
+  const { points, lines, triangles, selectedPoint, currentPlayer, newLineIds = [], newTriangleIds = [], rejectedMove } = gs;
   const activeColor = pColors[currentPlayer];
 
   const selPt = selectedPoint !== null ? points[selectedPoint] : null;
   const hovPt = hovered      !== null ? points[hovered]       : null;
 
-  const canDraw   = selPt && hovPt && hovered !== selectedPoint && !lineExists(lines, selectedPoint, hovered) && isMoveLegal(lines, points, selectedPoint, hovered);
-  const wouldCross = selPt && hovPt && hovered !== selectedPoint && !lineExists(lines, selectedPoint, hovered) && !isMoveLegal(lines, points, selectedPoint, hovered);
+  const hovExists   = selPt && hovPt && hovered !== selectedPoint && lineExists(lines, selectedPoint, hovered);
+  const hovLegal    = selPt && hovPt && hovered !== selectedPoint && !hovExists && isMoveLegal(lines, points, selectedPoint, hovered);
+  const hovSub      = selPt && hovPt && hovered !== selectedPoint && !hovExists && isSubsegment(lines, points, selectedPoint, hovered);
+  const canDraw     = hovLegal && !hovSub;
+  const wouldCross  = selPt && hovPt && hovered !== selectedPoint && !hovExists && (!hovLegal || hovSub);
+  const conflictLine = (wouldCross && !hovSub) ? findConflictLine(lines, points, selectedPoint, hovered) : null;
 
   const lineData = useMemo(() => lines.map(l => ({
     ...l,
@@ -120,8 +124,38 @@ export default function GameBoard({ gs, onPointClick, isAITurn, hintMove = null 
           <text x={(selPt.x + hovPt.x) / 2} y={(selPt.y + hovPt.y) / 2 - 10}
             textAnchor="middle" fontSize="12" fill="#ef4444" opacity={0.8}
             style={{ pointerEvents: 'none', userSelect: 'none' }}>
-            ✕ kesişiyor
+            {hovSub ? '✕ zaten var' : '✕ kesişiyor'}
           </text>
+        )}
+
+        {/* ── Kesişen çizgi highlight ── */}
+        {conflictLine && points[conflictLine.p1] && points[conflictLine.p2] && (
+          <>
+            <line
+              x1={points[conflictLine.p1].x} y1={points[conflictLine.p1].y}
+              x2={points[conflictLine.p2].x} y2={points[conflictLine.p2].y}
+              stroke="#ef4444" strokeWidth={8} strokeLinecap="round" strokeOpacity={0.25}
+              style={{ pointerEvents: 'none' }}
+            />
+            <line
+              x1={points[conflictLine.p1].x} y1={points[conflictLine.p1].y}
+              x2={points[conflictLine.p2].x} y2={points[conflictLine.p2].y}
+              stroke="#ef4444" strokeWidth={3} strokeLinecap="round" strokeOpacity={0.9}
+              strokeDasharray="6 3"
+              style={{ pointerEvents: 'none' }}
+            />
+          </>
+        )}
+
+        {/* ── Reddedilen hamle flaşı ── */}
+        {rejectedMove && points[rejectedMove.p1] && points[rejectedMove.p2] && (
+          <line
+            key={`rej-${rejectedMove.id}`}
+            className="reject-line"
+            x1={points[rejectedMove.p1].x} y1={points[rejectedMove.p1].y}
+            x2={points[rejectedMove.p2].x} y2={points[rejectedMove.p2].y}
+            stroke="#ef4444" strokeWidth={3} strokeLinecap="round"
+          />
         )}
 
         {/* ── Çizgiler ── */}

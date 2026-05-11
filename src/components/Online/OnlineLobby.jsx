@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { useOnlineGame } from '../../hooks/useOnlineGame';
@@ -12,81 +12,110 @@ function ColorRow({ label, selected, onSelect, exclude }) {
       <div className="text-xs text-slate-600 mb-1.5">{label}</div>
       <div className="flex flex-wrap gap-2">
         {COLOR_OPTIONS.filter(c => c.hex !== exclude).map(c => (
-          <button
-            key={c.id}
-            onClick={() => onSelect(c.hex)}
-            title={c.name}
+          <button key={c.id} onClick={() => onSelect(c.hex)} title={c.name}
             className={`w-7 h-7 rounded-full border-2 transition-all ${selected === c.hex ? 'border-white scale-110' : 'border-transparent opacity-70 hover:opacity-100'}`}
-            style={{ background: c.hex }}
-          />
+            style={{ background: c.hex }} />
         ))}
       </div>
     </div>
   );
 }
 
+function Leaderboard({ data, onRefresh, loading }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs text-slate-500">Bu oturumda en çok kazanan oyuncular gösterilir.</p>
+        <button onClick={onRefresh} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+          {loading ? '⟳' : '↻ Yenile'}
+        </button>
+      </div>
+      {data.length === 0 ? (
+        <div className="text-center py-10">
+          <div className="text-3xl mb-2">🏆</div>
+          <p className="text-slate-500 text-sm">Henüz kayıtlı oyuncu yok.</p>
+          <p className="text-slate-600 text-xs mt-1">Online oyun oynayarak sıralamaya gir!</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {data.map((p, i) => (
+            <motion.div key={p.name} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+              className="glass rounded-xl px-4 py-3 flex items-center gap-3 border border-slate-700/30">
+              <span className="text-lg font-black w-7 text-center" style={{
+                color: i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : '#64748b'
+              }}>
+                {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-white truncate">{p.name}</div>
+                <div className="text-xs text-slate-500">
+                  {p.wins}G · {p.losses}K · {p.draws}B
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-bold text-emerald-400">{p.wins}</div>
+                <div className="text-[10px] text-slate-600">kazanma</div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const POINT_OPTIONS = [10, 14, 18];
 const TABS = [
-  { id: 'quick',  label: '⚡ Hızlı Eşleşme' },
-  { id: 'create', label: '➕ Oda Oluştur' },
-  { id: 'join',   label: '🔑 Odaya Katıl' },
+  { id: 'quick',  label: '⚡ Hızlı' },
+  { id: 'create', label: '➕ Oda' },
+  { id: 'join',   label: '🔑 Katıl' },
+  { id: 'board',  label: '🏆 Sıra' },
 ];
 
 export default function OnlineLobby() {
-  const { goToMenu } = useApp();
+  const { goToMenu, initialRoomCode } = useApp();
   const {
     status, roomCode, myPlayerNum, gs, error, isMyTurn,
+    chatMessages, leaderboard,
     createRoom, joinRoom, findMatch, cancelMatch,
-    handlePointClick, requestRestart, leave,
+    handlePointClick, requestRestart, sendChat, fetchLeaderboard, leave,
   } = useOnlineGame();
 
-  const [tab,        setTab]    = useState('quick');
+  const [tab,        setTab]    = useState(initialRoomCode ? 'join' : 'quick');
   const [playerName, setName]   = useState('');
-  const [joinCode,   setCode]   = useState('');
+  const [joinCode,   setCode]   = useState(initialRoomCode || '');
   const [pointCount, setPoints] = useState(10);
   const [myColor,    setMyColor]   = useState(DEFAULT_COLORS[1]);
   const [oppColor,   setOppColor]  = useState(DEFAULT_COLORS[2]);
+  const [lbLoading,  setLbLoading] = useState(false);
 
-  function handleCreate() {
-    createRoom(playerName.trim() || 'Oyuncu 1', {
-      pointCount,
-      playerColors: { 1: myColor, 2: oppColor },
-    });
-  }
+  useEffect(() => {
+    if (tab === 'board') { setLbLoading(true); fetchLeaderboard(); setTimeout(() => setLbLoading(false), 1000); }
+  }, [tab]);
 
-  function handleJoin() {
-    if (joinCode.trim().length < 4) return;
-    joinRoom(joinCode.trim(), playerName.trim() || 'Oyuncu 2');
-  }
+  function handleCreate() { createRoom(playerName.trim() || 'Oyuncu 1', { pointCount, playerColors: { 1: myColor, 2: oppColor } }); }
+  function handleJoin()   { if (joinCode.trim().length < 4) return; joinRoom(joinCode.trim(), playerName.trim() || 'Oyuncu 2'); }
+  function handleFind()   { findMatch(playerName.trim() || 'Oyuncu', { pointCount, playerColors: { 1: myColor, 2: oppColor } }); }
+  function handleLeave()  { leave(); goToMenu(); }
 
-  function handleFindMatch() {
-    findMatch(playerName.trim() || 'Oyuncu', {
-      pointCount,
-      playerColors: { 1: myColor, 2: oppColor },
-    });
-  }
+  const inviteUrl = roomCode ? `${window.location.origin}?room=${roomCode}` : '';
 
-  function handleLeave() {
-    leave();
-    goToMenu();
-  }
+  function copyInvite() { navigator.clipboard?.writeText(inviteUrl); }
+  function copyCode()   { navigator.clipboard?.writeText(roomCode); }
 
   if (status === 'playing') {
     return (
       <OnlineGame
-        gs={gs}
-        myPlayerNum={myPlayerNum}
-        isMyTurn={isMyTurn}
-        onPointClick={handlePointClick}
-        onRestart={requestRestart}
-        onLeave={handleLeave}
+        gs={gs} myPlayerNum={myPlayerNum} isMyTurn={isMyTurn}
+        onPointClick={handlePointClick} onRestart={requestRestart} onLeave={handleLeave}
+        chatMessages={chatMessages} onSendChat={sendChat}
       />
     );
   }
 
   if (status === 'disconnected') {
     return (
-      <div className="full-screen flex flex-col items-center justify-center bg-slate-900 px-4">
+      <div className="full-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: 'var(--c-bg)' }}>
         <div className="text-5xl mb-4">🔌</div>
         <h2 className="text-xl font-bold text-white mb-2">Bağlantı Kesildi</h2>
         <p className="text-slate-400 text-sm mb-6 text-center">Rakip oyundan ayrıldı.</p>
@@ -95,65 +124,46 @@ export default function OnlineLobby() {
     );
   }
 
-  // Rakip bekleniyor (oda kodu ile)
   if (status === 'waiting') {
     return (
-      <div className="full-screen overflow-y-auto bg-slate-900">
-        <motion.div
-          className="w-full max-w-md mx-auto px-4 py-6"
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        >
-          <button onClick={handleLeave} className="text-slate-500 active:text-slate-300 mb-5 flex items-center gap-1 text-sm py-1">
-            ← Geri
-          </button>
-          <motion.div
-            className="glass rounded-2xl p-8 border border-slate-700/40 text-center"
-            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          >
-            <motion.div
-              className="text-5xl mb-4"
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-            >⏳</motion.div>
+      <div className="full-screen overflow-y-auto" style={{ backgroundColor: 'var(--c-bg)' }}>
+        <motion.div className="w-full max-w-md mx-auto px-4 py-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <button onClick={handleLeave} className="text-slate-500 active:text-slate-300 mb-5 flex items-center gap-1 text-sm py-1">← Geri</button>
+          <motion.div className="glass rounded-2xl p-8 border border-slate-700/40 text-center"
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+            <motion.div className="text-5xl mb-4" animate={{ rotate: [0, 10, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }}>⏳</motion.div>
             <p className="text-slate-300 font-semibold mb-1">Rakip bekleniyor…</p>
-            <p className="text-slate-500 text-sm mb-5">Bu kodu arkadaşınla paylaş</p>
-            <div className="bg-slate-800 rounded-xl py-4 px-6 mb-4 border border-slate-700">
+            <p className="text-slate-500 text-sm mb-5">Bu kodu veya linki paylaş</p>
+
+            <div className="bg-slate-800 rounded-xl py-4 px-6 mb-3 border border-slate-700">
               <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Oda Kodu</div>
               <div className="text-4xl font-black text-indigo-400 tracking-[0.3em] font-mono">{roomCode}</div>
             </div>
-            <button
-              onClick={() => navigator.clipboard?.writeText(roomCode)}
-              className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-            >
-              📋 Kopyala
-            </button>
+            <div className="flex gap-2 mb-3">
+              <button onClick={copyCode} className="flex-1 text-xs text-slate-500 hover:text-slate-300 transition-colors py-1 glass rounded-lg">
+                📋 Kodu Kopyala
+              </button>
+              <button onClick={copyInvite} className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors py-1 glass rounded-lg border border-indigo-500/30">
+                🔗 Link Paylaş
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-700 font-mono break-all">{inviteUrl}</p>
           </motion.div>
         </motion.div>
       </div>
     );
   }
 
-  // Hızlı eşleşme aranıyor
   if (status === 'searching') {
     return (
-      <div className="full-screen flex flex-col items-center justify-center bg-slate-900 px-4">
-        <motion.div
-          className="text-6xl mb-6"
-          animate={{ scale: [1, 1.15, 1] }}
-          transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
-        >
-          🔍
-        </motion.div>
+      <div className="full-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: 'var(--c-bg)' }}>
+        <motion.div className="text-6xl mb-6" animate={{ scale: [1, 1.15, 1] }} transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}>🔍</motion.div>
         <h2 className="text-xl font-bold text-white mb-2">Rakip aranıyor…</h2>
         <p className="text-slate-400 text-sm mb-8 text-center">Sana uygun bir rakip bulmaya çalışıyoruz.</p>
         <div className="flex gap-1 mb-8">
-          {[0, 1, 2].map(i => (
-            <motion.div
-              key={i}
-              className="w-2 h-2 rounded-full bg-indigo-400"
-              animate={{ opacity: [0.3, 1, 0.3] }}
-              transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }}
-            />
+          {[0,1,2].map(i => (
+            <motion.div key={i} className="w-2 h-2 rounded-full bg-indigo-400"
+              animate={{ opacity: [0.3,1,0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }} />
           ))}
         </div>
         <Button onClick={cancelMatch} variant="secondary">İptal</Button>
@@ -161,44 +171,28 @@ export default function OnlineLobby() {
     );
   }
 
-  // Ana form (idle / creating / joining)
   return (
-    <div className="full-screen overflow-y-auto bg-slate-900">
-      <motion.div
-        className="w-full max-w-md mx-auto px-4 py-6"
-        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-      >
-        <button onClick={handleLeave} className="text-slate-500 active:text-slate-300 mb-5 flex items-center gap-1 text-sm py-1">
-          ← Geri
-        </button>
+    <div className="full-screen overflow-y-auto" style={{ backgroundColor: 'var(--c-bg)' }}>
+      <motion.div className="w-full max-w-md mx-auto px-4 py-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <button onClick={handleLeave} className="text-slate-500 active:text-slate-300 mb-5 flex items-center gap-1 text-sm py-1">← Geri</button>
         <h2 className="text-2xl font-black text-white mb-5">🌐 Online Oyun</h2>
 
-        {/* Loading */}
         {(status === 'creating' || status === 'joining') && (
           <div className="text-center py-16">
-            <motion.div
-              className="text-4xl mb-4"
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-            >⚙️</motion.div>
-            <p className="text-slate-400">
-              {status === 'creating' ? 'Oda oluşturuluyor…' : 'Odaya katılınıyor…'}
-            </p>
+            <motion.div className="text-4xl mb-4" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>⚙️</motion.div>
+            <p className="text-slate-400">{status === 'creating' ? 'Oda oluşturuluyor…' : 'Odaya katılınıyor…'}</p>
           </div>
         )}
 
         {status === 'idle' && (
           <>
             {error && (
-              <motion.div
-                className="bg-rose-500/15 border border-rose-500/30 rounded-xl px-4 py-2.5 text-rose-400 text-sm mb-4"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              >
+              <motion.div className="bg-rose-500/15 border border-rose-500/30 rounded-xl px-4 py-2.5 text-rose-400 text-sm mb-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 ⚠️ {error}
               </motion.div>
             )}
 
-            {/* Tab switcher */}
+            {/* Sekmeler */}
             <div className="flex rounded-xl bg-slate-800 p-1 mb-5">
               {TABS.map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)}
@@ -208,35 +202,30 @@ export default function OnlineLobby() {
               ))}
             </div>
 
-            {/* Ad alanı (tüm tablarda ortak) */}
-            <div className="mb-4">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Adın</label>
-              <input
-                className="w-full glass rounded-xl px-4 py-2.5 text-sm text-white border border-slate-700 focus:border-indigo-500 outline-none bg-transparent placeholder-slate-600"
-                placeholder="Oyuncu"
-                value={playerName}
-                onChange={e => setName(e.target.value)}
-                maxLength={16}
-              />
-            </div>
+            {/* Ad alanı — quick/create/join */}
+            {tab !== 'board' && (
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Adın</label>
+                <input
+                  className="w-full glass rounded-xl px-4 py-2.5 text-sm text-white border border-slate-700 focus:border-indigo-500 outline-none bg-transparent placeholder-slate-600"
+                  placeholder="Oyuncu" value={playerName} onChange={e => setName(e.target.value)} maxLength={16} />
+              </div>
+            )}
 
             <AnimatePresence mode="wait">
 
-              {/* ── Hızlı Eşleşme ── */}
+              {/* Hızlı Eşleşme */}
               {tab === 'quick' && (
                 <motion.div key="quick" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
                   <div className="glass rounded-2xl p-5 border border-slate-700/40 mb-5 text-center">
                     <div className="text-3xl mb-2">⚡</div>
                     <p className="text-slate-300 text-sm">Rastgele bir rakiple anında eşleş.</p>
-                    <p className="text-slate-500 text-xs mt-1">Oyun ayarları: 10 nokta, varsayılan renkler</p>
                   </div>
-                  <Button onClick={handleFindMatch} variant="primary" size="lg" className="w-full">
-                    Rakip Bul
-                  </Button>
+                  <Button onClick={handleFind} variant="primary" size="lg" className="w-full">Rakip Bul</Button>
                 </motion.div>
               )}
 
-              {/* ── Oda Oluştur ── */}
+              {/* Oda Oluştur */}
               {tab === 'create' && (
                 <motion.div key="create" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
                   <div className="mb-4">
@@ -262,24 +251,18 @@ export default function OnlineLobby() {
                       <div className="flex-1 h-1.5 rounded-full" style={{ background: oppColor }} />
                     </div>
                   </div>
-                  <Button onClick={handleCreate} variant="primary" size="lg" className="w-full">
-                    🌐 Oda Oluştur
-                  </Button>
+                  <Button onClick={handleCreate} variant="primary" size="lg" className="w-full">🌐 Oda Oluştur</Button>
                 </motion.div>
               )}
 
-              {/* ── Odaya Katıl ── */}
+              {/* Odaya Katıl */}
               {tab === 'join' && (
                 <motion.div key="join" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
                   <div className="mb-5">
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Oda Kodu</label>
                     <input
                       className="w-full glass rounded-xl px-4 py-3 text-2xl text-white border border-slate-700 focus:border-indigo-500 outline-none bg-transparent placeholder-slate-600 text-center tracking-[0.3em] font-mono uppercase"
-                      placeholder="ABCD"
-                      value={joinCode}
-                      onChange={e => setCode(e.target.value.toUpperCase())}
-                      maxLength={4}
-                    />
+                      placeholder="ABCD" value={joinCode} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={4} />
                   </div>
                   <Button onClick={handleJoin} variant="primary" size="lg" className="w-full" disabled={joinCode.trim().length < 4}>
                     🔑 Odaya Katıl
@@ -287,10 +270,20 @@ export default function OnlineLobby() {
                 </motion.div>
               )}
 
+              {/* Liderlik Tablosu */}
+              {tab === 'board' && (
+                <motion.div key="board" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+                  <Leaderboard
+                    data={leaderboard}
+                    loading={lbLoading}
+                    onRefresh={() => { setLbLoading(true); fetchLeaderboard(); setTimeout(() => setLbLoading(false), 800); }}
+                  />
+                </motion.div>
+              )}
+
             </AnimatePresence>
           </>
         )}
-
         <div className="h-8" />
       </motion.div>
     </div>
