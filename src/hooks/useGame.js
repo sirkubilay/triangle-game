@@ -53,15 +53,15 @@ function buildInitialState(cfg) {
     // Tracking
     maxTrianglesInOneTurn: 0,
     powerUsed: false,
+    aiTurnVersion: 0,
   };
 }
 
 export function useGame(config) {
-  const cfgRef          = useRef(config);
-  const [gs, setGs]     = useState(() => buildInitialState(config));
-  const aiTimerRef      = useRef(null);
-  const aiMoveInFlight  = useRef(false);
-  const statsWritten    = useRef(false);
+  const cfgRef       = useRef(config);
+  const [gs, setGs]  = useState(() => buildInitialState(config));
+  const aiTimerRef   = useRef(null);
+  const statsWritten = useRef(false);
   const undoStack       = useRef([]);
   const timedOutCounts  = useRef({ 1: 0, 2: 0 });
   const [timeLeft, setTimeLeft] = useState(TURN_TIME);
@@ -82,25 +82,19 @@ export function useGame(config) {
 
   const isAITurn = gs?.mode === 'vsAI' && gs?.currentPlayer === 2 && gs?.phase === 'playing';
 
-  // AI turn
+  // AI turn — her tetiklenme (aiTurnVersion artışı) için tam olarak bir hamle yapar
   useEffect(() => {
-    if (!isAITurn) { aiMoveInFlight.current = false; return; }
-    if (aiMoveInFlight.current) return;
-    aiMoveInFlight.current = true;
+    if (!isAITurn) return;
     aiTimerRef.current = setTimeout(() => {
       setGs(prev => {
-        aiMoveInFlight.current = false;
         if (!prev || prev.phase !== 'playing' || prev.currentPlayer !== 2) return prev;
         const move = getAIMove(prev.lines, prev.points, prev.difficulty);
         if (!move) return prev;
         return applyMove(prev, move.p1, move.p2);
       });
     }, AI_DELAY);
-    return () => {
-      clearTimeout(aiTimerRef.current);
-      aiMoveInFlight.current = false;
-    };
-  }, [isAITurn, gs?.lines?.length]);
+    return () => clearTimeout(aiTimerRef.current);
+  }, [gs?.aiTurnVersion]);
 
   // Per-turn timer (not used in timed or daily modes)
   useEffect(() => {
@@ -248,6 +242,10 @@ export function useGame(config) {
     const isSinglePlayer = prev.mode === 'timeAttack' || prev.mode === 'daily';
     const nextPlayer = isSinglePlayer ? 1 : ((stayNormal || stayExtra) ? prev.currentPlayer : (prev.currentPlayer === 1 ? 2 : 1));
 
+    const aiTurnVersion = (!over && nextPlayer === 2)
+      ? (prev.aiTurnVersion ?? 0) + 1
+      : (prev.aiTurnVersion ?? 0);
+
     return {
       ...prev,
       lines: updatedLines, triangles: updatedTriangles, scores: updatedScores,
@@ -262,6 +260,7 @@ export function useGame(config) {
       powerUsed: newPowerUsed,
       movesUsed: newMovesUsed,
       rejectedMove: null,
+      aiTurnVersion,
     };
   }
 
