@@ -236,6 +236,11 @@ export function findNewTriangles(existingLines, newP1, newP2, points) {
         const pa = points[a], pb = points[b], pd = points[d];
         const area = Math.abs((pb.x - pa.x) * (pd.y - pa.y) - (pd.x - pa.x) * (pb.y - pa.y));
         if (area === 0) continue;
+        // Grid koordinat yuvarlama hatası nedeniyle neredeyse-sıfır alan üçgenleri ele:
+        // herhangi bir köşe karşı kenarda görünüyorsa üçgen degeneredir.
+        if (pointOnSegmentInterior(pa, pb, pd)) continue;
+        if (pointOnSegmentInterior(pb, pa, pd)) continue;
+        if (pointOnSegmentInterior(pd, pa, pb)) continue;
 
         seen.add(key);
         result.push({ p1: a, p2: b, p3: d });
