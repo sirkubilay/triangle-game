@@ -169,8 +169,10 @@ export function isSubsegment(lines, points, p1Id, p2Id) {
     Math.hypot(points[b].x - pt1.x, points[b].y - pt1.y)
   );
 
+  // Ardışık çiftlerin her biri de bir alt-segment mi kontrol et (özyinelemeli).
+  // Komşu çiftler arasında başka nokta olmadığından Durum A'ya indirgenir, sonsuz döngü olmaz.
   for (let i = 0; i < onSeg.length - 1; i++) {
-    if (!lineExists(lines, onSeg[i], onSeg[i + 1])) return false;
+    if (!isSubsegment(lines, points, onSeg[i], onSeg[i + 1])) return false;
   }
   return true;
 }
