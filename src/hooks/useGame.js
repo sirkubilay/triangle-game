@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   generatePoints, generateGridPoints, lineKey, lineExists, isMoveLegal, isSubsegment,
   findNewTriangles, isGameOver, getAllPossibleMoves, findConflictLine, getNeighbors,
-  isSubTriangleOf,
 } from '../utils/triangleLogic';
 import { getAIMove } from '../utils/aiLogic';
 import { updateStatsAfterGame, updateFriendResult } from '../utils/storage';
@@ -174,23 +173,14 @@ export function useGame(config) {
     const updatedLines = [...prev.lines, newLine];
     const rawTris      = findNewTriangles(prev.lines, p1, p2, prev.points);
     console.log(`[TRI] Çizgi: ${p1}-${p2} | Mevcut: [${prev.lines.map(l=>`${l.p1}-${l.p2}`).join(', ')}] | Üçgenler: [${rawTris.map(t=>`{${t.p1},${t.p2},${t.p3}}`).join(', ')||'yok'}] | Skor: ${prev.scores[1]}→${prev.scores[prev.currentPlayer]+(rawTris.length)} (P${prev.currentPlayer})`);
-    const existingIds  = new Set(prev.triangles.map(t => t.id));
-    // Tüm bulunan üçgenleri büyükten küçüğe sırala, sonra mevcut veya kabul edilen
-    // bir üçgenin içinde kalan alt-üçgenleri ele (sub-triangle de-dup)
-    const candidates = rawTris
+    const existingIds = new Set(prev.triangles.map(t => t.id));
+    const newTris = rawTris
       .map(t => {
         const pa = prev.points[t.p1], pb = prev.points[t.p2], pc = prev.points[t.p3];
         const area = Math.abs((pb.x - pa.x) * (pc.y - pa.y) - (pc.x - pa.x) * (pb.y - pa.y));
         return { ...t, id: `${t.p1}-${t.p2}-${t.p3}`, player: prev.currentPlayer, area };
       })
-      .filter(t => !existingIds.has(t.id))
-      .sort((a, b) => b.area - a.area);
-    const accepted = [];
-    for (const t of candidates) {
-      const allSoFar = [...prev.triangles, ...accepted];
-      if (!allSoFar.some(et => isSubTriangleOf(t, et, prev.points))) accepted.push(t);
-    }
-    const newTris = accepted;
+      .filter(t => !existingIds.has(t.id));
 
     const updatedTriangles = [...prev.triangles, ...newTris];
     const scored           = newTris.length;

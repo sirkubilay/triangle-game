@@ -153,42 +153,26 @@ export function isSubsegment(lines, points, p1Id, p2Id) {
   return false;
 }
 
-// Bir nokta için örtük komşu kümesi:
-// Durum A: nokta mevcut kenarın iç noktasıysa → o kenarın uç noktaları + diğer iç noktaları
-// Durum B: nokta mevcut kenarın uç noktasıysa → o kenarın ortasındaki noktalar
-function fullNeighbors(pId, existingLines, points) {
-  const nbrs = new Set(getNeighbors(pId, existingLines));
-  const pt = points[pId];
-  for (const line of existingLines) {
+// a ile b arasında kenar var mı? (doğrudan çizgi VEYA aynı çizgi üzerinde alt-segment)
+function edgeExists(a, b, allLines, points) {
+  if (lineExists(allLines, a, b)) return true;
+  if (!points) return false;
+  const pa = points[a], pb = points[b];
+  for (const line of allLines) {
     const lp1 = points[line.p1], lp2 = points[line.p2];
-    if (line.p1 !== pId && line.p2 !== pId) {
-      // Durum A: pId bu kenarın iç noktasıysa
-      if (pointOnSegmentInterior(pt, lp1, lp2)) {
-        nbrs.add(line.p1);
-        nbrs.add(line.p2);
-        // Durum C: aynı kenar üzerindeki diğer iç noktaları da komşu say
-        for (const p of points) {
-          if (p.id !== line.p1 && p.id !== line.p2 && p.id !== pId && pointOnSegmentInterior(p, lp1, lp2))
-            nbrs.add(p.id);
-        }
-      }
-    } else {
-      // Durum B: pId bu kenarın uç noktasıysa → iç noktaları komşu say
-      for (const p of points) {
-        if (p.id !== line.p1 && p.id !== line.p2 && pointOnSegmentInterior(p, lp1, lp2))
-          nbrs.add(p.id);
-      }
-    }
+    const aOn = (line.p1 === a || line.p2 === a) || pointOnSegmentInterior(pa, lp1, lp2);
+    const bOn = (line.p1 === b || line.p2 === b) || pointOnSegmentInterior(pb, lp1, lp2);
+    if (aOn && bOn) return true;
   }
-  return nbrs;
+  return false;
 }
 
 export function findNewTriangles(existingLines, newP1, newP2, points) {
+  const allLines = [...existingLines, { p1: newP1, p2: newP2 }];
   const result = [];
-  const seen   = new Set();
+  const seen = new Set();
 
   if (!points) {
-    // Geometri bilgisi yoksa basit komşu kontrolü
     const nbrs1 = getNeighbors(newP1, existingLines);
     const nbrs2Set = new Set(getNeighbors(newP2, existingLines));
     for (const c of nbrs1) {
@@ -202,30 +186,33 @@ export function findNewTriangles(existingLines, newP1, newP2, points) {
 
   const pt1 = points[newP1], pt2 = points[newP2];
 
-  // Yeni kenar üzerindeki TÜM noktalar (uç noktalar + ara noktalar)
-  const segPts = [newP1];
+  // Yeni çizgi üzerindeki tüm noktalar (uç noktalar + iç grid noktaları)
+  const newLinePts = [newP1];
   for (const p of points) {
     if (p.id !== newP1 && p.id !== newP2 && pointOnSegmentInterior(p, pt1, pt2))
-      segPts.push(p.id);
+      newLinePts.push(p.id);
   }
-  segPts.push(newP2);
+  newLinePts.push(newP2);
 
-  // Her segment noktası için tam komşu kümesini önceden hesapla
-  const segNbrs = segPts.map(pId => [pId, fullNeighbors(pId, existingLines, points)]);
+  // Yeni üçgen, en az bir kenarını yeni çizgiden almalı:
+  // yani iki köşesi newLinePts içinde olmalı.
+  for (let i = 0; i < newLinePts.length; i++) {
+    for (let j = i + 1; j < newLinePts.length; j++) {
+      const X = newLinePts[i], Y = newLinePts[j];
+      for (const p of points) {
+        const Z = p.id;
+        if (Z === X || Z === Y) continue;
+        if (!edgeExists(X, Z, allLines, points)) continue;
+        if (!edgeExists(Y, Z, allLines, points)) continue;
 
-  // Her E1-E2 çifti için ortak komşu ara → üçgen
-  for (let i = 0; i < segNbrs.length; i++) {
-    const [E1, n1] = segNbrs[i];
-    for (let j = i + 1; j < segNbrs.length; j++) {
-      const [E2, n2] = segNbrs[j];
-      for (const c of n1) {
-        if (!n2.has(c) || c === E1 || c === E2) continue;
-        const [a, b, d] = [E1, E2, c].sort((x, y) => x - y);
+        const [a, b, d] = [X, Y, Z].sort((x, y) => x - y);
         const key = `${a}-${b}-${d}`;
         if (seen.has(key)) continue;
+
         const pa = points[a], pb = points[b], pd = points[d];
         const area = Math.abs((pb.x - pa.x) * (pd.y - pa.y) - (pd.x - pa.x) * (pb.y - pa.y));
         if (area === 0) continue;
+
         seen.add(key);
         result.push({ p1: a, p2: b, p3: d });
       }
