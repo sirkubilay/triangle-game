@@ -177,18 +177,24 @@ export function isSubsegment(lines, points, p1Id, p2Id) {
   return true;
 }
 
-// a ile b arasında kenar var mı? (doğrudan çizgi VEYA aynı çizgi üzerinde alt-segment)
+// a ile b arasında kenar var mı?
+// isSubsegment kullanır → tek çizgi, alt-segment ve çok parçalı doğrusal kaplama hepsini yakalar.
 function edgeExists(a, b, allLines, points) {
-  if (lineExists(allLines, a, b)) return true;
-  if (!points) return false;
-  const pa = points[a], pb = points[b];
-  for (const line of allLines) {
-    const lp1 = points[line.p1], lp2 = points[line.p2];
-    const aOn = (line.p1 === a || line.p2 === a) || pointOnSegmentInterior(pa, lp1, lp2);
-    const bOn = (line.p1 === b || line.p2 === b) || pointOnSegmentInterior(pb, lp1, lp2);
-    if (aOn && bOn) return true;
-  }
-  return false;
+  if (!points) return lineExists(allLines, a, b);
+  return isSubsegment(allLines, points, a, b);
+}
+
+// Degenerate üçgen testi: p noktası a-b segmentine ≤1px mesafede mi?
+function nearlyOnSegment(p, a, b) {
+  if (p.x === a.x && p.y === a.y) return false;
+  if (p.x === b.x && p.y === b.y) return false;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return false;
+  const cross = dx * (p.y - a.y) - dy * (p.x - a.x);
+  if (cross * cross > len2) return false; // >1px uzaklık
+  const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+  return t > 0.001 && t < 0.999;
 }
 
 export function findNewTriangles(existingLines, newP1, newP2, points) {
@@ -236,11 +242,10 @@ export function findNewTriangles(existingLines, newP1, newP2, points) {
         const pa = points[a], pb = points[b], pd = points[d];
         const area = Math.abs((pb.x - pa.x) * (pd.y - pa.y) - (pd.x - pa.x) * (pb.y - pa.y));
         if (area === 0) continue;
-        // Grid koordinat yuvarlama hatası nedeniyle neredeyse-sıfır alan üçgenleri ele:
-        // herhangi bir köşe karşı kenarda görünüyorsa üçgen degeneredir.
-        if (pointOnSegmentInterior(pa, pb, pd)) continue;
-        if (pointOnSegmentInterior(pb, pa, pd)) continue;
-        if (pointOnSegmentInterior(pd, pa, pb)) continue;
+        // Koordinat yuvarlama hatası: herhangi bir köşe karşı kenara ≤1px yakınsa degenere say.
+        if (nearlyOnSegment(pa, pb, pd)) continue;
+        if (nearlyOnSegment(pb, pa, pd)) continue;
+        if (nearlyOnSegment(pd, pa, pb)) continue;
 
         seen.add(key);
         result.push({ p1: a, p2: b, p3: d });
