@@ -90,7 +90,7 @@ export default function OnlineLobby() {
     rematchState, rematchFrom,
     turnTimeLeft, armedPowerUp,
     createRoom, joinRoom, findMatch, cancelMatch,
-    handlePointClick, armPowerUp, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
+    handlePointClick, armPowerUp, passTurn, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
   } = useOnlineGame();
 
   const [tab,        setTab]    = useState(initialRoomCode ? 'join' : 'quick');
@@ -125,7 +125,7 @@ export default function OnlineLobby() {
         chatMessages={chatMessages} onSendChat={sendChat}
         rematchState={rematchState} rematchFrom={rematchFrom}
         onAcceptRestart={acceptRestart} onDeclineRestart={declineRestart}
-        turnTimeLeft={turnTimeLeft} armedPowerUp={armedPowerUp} onArmPowerUp={armPowerUp}
+        turnTimeLeft={turnTimeLeft} armedPowerUp={armedPowerUp} onArmPowerUp={armPowerUp} onPassTurn={passTurn}
       />
     );
   }
@@ -234,6 +234,18 @@ export default function OnlineLobby() {
               {/* Hızlı Eşleşme */}
               {tab === 'quick' && (
                 <motion.div key="quick" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
+                  <div className="mb-4">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Nokta Sayısı</label>
+                    <div className="flex flex-wrap gap-2">
+                      {POINT_OPTIONS.map(n => (
+                        <button key={n} onClick={() => setPoints(n)}
+                          className={`flex-1 min-w-[56px] py-2 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                          {n}
+                          <div className="text-[10px] font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : n === 18 ? 'Epik' : n === 22 ? 'Mega' : 'Ultra'}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="mb-4 glass rounded-2xl p-4 border border-slate-700/40">
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">🎨 Rengin</label>
                     <ColorRow label="" selected={myColor} onSelect={setMyColor} exclude={null} />

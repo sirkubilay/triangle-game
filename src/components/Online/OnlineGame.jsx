@@ -18,16 +18,16 @@ function PowerUpBtn({ icon, label, count, armed, disabled, onClick }) {
   );
 }
 
-export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, onRestart, onLeave, chatMessages, onSendChat, rematchState, rematchFrom, onAcceptRestart, onDeclineRestart, turnTimeLeft, armedPowerUp, onArmPowerUp }) {
+export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, onRestart, onLeave, chatMessages, onSendChat, rematchState, rematchFrom, onAcceptRestart, onDeclineRestart, turnTimeLeft, armedPowerUp, onArmPowerUp, onPassTurn }) {
   const [muted, setMuted] = useState(isMuted());
   if (!gs) return null;
   const lastScoredCount = gs.newTriangleIds?.length ?? 0;
   function handleMute() { const m = toggleMute(); setMuted(m); }
 
   const turnTime = gs.turnTime ?? 0;
-  const timerColor = turnTimeLeft <= 5 ? 'text-rose-400 border-rose-500/50 bg-rose-500/10'
-    : turnTimeLeft <= 10 ? 'text-amber-400 border-amber-500/50 bg-amber-500/10'
-    : 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10';
+  const timerColor = !turnTimeLeft || turnTimeLeft > 10 ? 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10'
+    : turnTimeLeft > 5 ? 'text-amber-400 border-amber-500/50 bg-amber-500/10'
+    : 'text-rose-400 border-rose-500/50 bg-rose-500/10 animate-pulse';
 
   return (
     <div className="full-screen flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--c-bg)' }}>
@@ -42,7 +42,7 @@ export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, on
           </div>
           {turnTime > 0 && turnTimeLeft !== null && (
             <div className={`text-xs font-bold px-2 py-0.5 rounded-full border tabular-nums transition-all ${timerColor}`}>
-              {turnTimeLeft}s
+              {isMyTurn ? '' : '👁 '}{turnTimeLeft}s
             </div>
           )}
           <span className="text-[10px] text-slate-700 border border-slate-800 rounded-full px-1.5 py-0.5">P{myPlayerNum}</span>
@@ -59,25 +59,32 @@ export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, on
         <GameBoard gs={gs} onPointClick={onPointClick} isAITurn={!isMyTurn} hintMove={null} />
       </div>
 
-      {gs.powerUps && isMyTurn && gs.phase === 'playing' && (() => {
-        const myPU = gs.powerUps[myPlayerNum] ?? {};
+      {isMyTurn && gs.phase === 'playing' && (() => {
+        const myPU = gs.powerUps?.[myPlayerNum] ?? {};
         return (
-          <div className="shrink-0 flex items-center gap-2 px-3 pb-1">
-            <span className="text-[10px] text-slate-600 uppercase tracking-wider mr-1">Güç:</span>
-            <PowerUpBtn icon="⚡" label="Çift" count={myPU.doubleScore ?? 0}
-              armed={armedPowerUp === 'doubleScore'} disabled={(myPU.doubleScore ?? 0) === 0}
-              onClick={() => onArmPowerUp('doubleScore')} />
-            <PowerUpBtn icon="🔄" label="Ekstra" count={myPU.extraTurn ?? 0}
-              armed={armedPowerUp === 'extraTurn'} disabled={(myPU.extraTurn ?? 0) === 0}
-              onClick={() => onArmPowerUp('extraTurn')} />
-            <PowerUpBtn icon="🛑" label="Engel" count={myPU.blockTurn ?? 0}
-              armed={armedPowerUp === 'blockTurn'} disabled={(myPU.blockTurn ?? 0) === 0}
-              onClick={() => onArmPowerUp('blockTurn')} />
-            {armedPowerUp && (
-              <span className="text-[10px] text-amber-400 animate-pulse ml-1">
-                {{ doubleScore: '⚡ hazır', extraTurn: '🔄 hazır', blockTurn: '🛑 hazır' }[armedPowerUp]}
-              </span>
-            )}
+          <div className="shrink-0 flex items-center gap-2 px-3 pb-1 flex-wrap">
+            {gs.powerUps && (<>
+              <span className="text-[10px] text-slate-600 uppercase tracking-wider">Güç:</span>
+              <PowerUpBtn icon="⚡" label="Çift" count={myPU.doubleScore ?? 0}
+                armed={armedPowerUp === 'doubleScore'} disabled={(myPU.doubleScore ?? 0) === 0}
+                onClick={() => onArmPowerUp('doubleScore')} />
+              <PowerUpBtn icon="🔄" label="Ekstra" count={myPU.extraTurn ?? 0}
+                armed={armedPowerUp === 'extraTurn'} disabled={(myPU.extraTurn ?? 0) === 0}
+                onClick={() => onArmPowerUp('extraTurn')} />
+              <PowerUpBtn icon="🛑" label="Engel" count={myPU.blockTurn ?? 0}
+                armed={armedPowerUp === 'blockTurn'} disabled={(myPU.blockTurn ?? 0) === 0}
+                onClick={() => onArmPowerUp('blockTurn')} />
+              {armedPowerUp && (
+                <span className="text-[10px] text-amber-400 animate-pulse">
+                  {{ doubleScore: '⚡ hazır', extraTurn: '🔄 hazır', blockTurn: '🛑 hazır' }[armedPowerUp]}
+                </span>
+              )}
+              <span className="text-slate-700">|</span>
+            </>)}
+            <button onClick={onPassTurn}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-700 text-xs font-semibold text-slate-400 hover:border-slate-500 hover:text-slate-300 transition-all">
+              ⏭ Pas
+            </button>
           </div>
         );
       })()}

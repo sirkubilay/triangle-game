@@ -21,6 +21,7 @@ function buildState(cfg) {
     } : null,
     armedPowerUp: null,
     blockedPlayer: null,
+    consecutivePasses: 0,
     mode: 'online',
   };
 }
@@ -83,6 +84,7 @@ function applyMove(prev, rawP1, rawP2, powerUp = null) {
     powerUps: newPowerUps,
     armedPowerUp: null,
     blockedPlayer: oppBlocked ? rawNext : null,
+    consecutivePasses: 0,
   };
 }
 
@@ -141,9 +143,19 @@ export function useOnlineGame() {
     socket.on('turn-passed', () => {
       setGs(prev => {
         if (!prev || prev.phase !== 'playing') return prev;
-        return { ...prev, currentPlayer: prev.currentPlayer === 1 ? 2 : 1, selectedPoint: null, newLineIds: [], newTriangleIds: [] };
+        const passes = (prev.consecutivePasses ?? 0) + 1;
+        if (passes >= 2) {
+          const s1 = prev.scores[1], s2 = prev.scores[2];
+          const winner = s1 > s2 ? 1 : s2 > s1 ? 2 : 0;
+          return { ...prev, phase: 'over', winner, consecutivePasses: passes };
+        }
+        return {
+          ...prev,
+          currentPlayer: prev.currentPlayer === 1 ? 2 : 1,
+          selectedPoint: null, newLineIds: [], newTriangleIds: [],
+          consecutivePasses: passes,
+        };
       });
-      setTurnTimeLeft(null);
     });
 
     return () => {
@@ -159,19 +171,18 @@ export function useOnlineGame() {
   // Keep roomCodeRef in sync for timer callback
   useEffect(() => { roomCodeRef.current = roomCode; }, [roomCode]);
 
-  // Turn timer
+  // Turn timer — her iki oyuncuya göster, sadece sırası gelen emit eder
   useEffect(() => {
     const turnTime = gs?.turnTime;
     if (!turnTime || !gs || gs.phase !== 'playing') { setTurnTimeLeft(null); return; }
     const myTurn = gs.currentPlayer === myPlayerNum;
-    if (!myTurn) { setTurnTimeLeft(null); return; }
     setTurnTimeLeft(turnTime);
     const id = setInterval(() => {
       setTurnTimeLeft(prev => {
         if (prev === null) return null;
         if (prev <= 1) {
           clearInterval(id);
-          getSocket().emit('pass-turn', { code: roomCodeRef.current });
+          if (myTurn) getSocket().emit('pass-turn', { code: roomCodeRef.current });
           return 0;
         }
         return prev - 1;
@@ -261,6 +272,11 @@ export function useOnlineGame() {
     setArmedPowerUp(prev => prev === type ? null : type);
   }, []);
 
+  const passTurn = useCallback(() => {
+    if (!gs || gs.phase !== 'playing' || gs.currentPlayer !== myPlayerNum) return;
+    getSocket().emit('pass-turn', { code: roomCodeRef.current });
+  }, [gs, myPlayerNum]);
+
   const leave = useCallback(() => {
     getSocket().emit('cancel-match');
     disconnectSocket();
@@ -276,6 +292,6 @@ export function useOnlineGame() {
     rematchState, rematchFrom,
     turnTimeLeft, armedPowerUp,
     createRoom, joinRoom, findMatch, cancelMatch,
-    handlePointClick, armPowerUp, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
+    handlePointClick, armPowerUp, passTurn, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
   };
 }
