@@ -177,78 +177,20 @@ export function isSubsegment(lines, points, p1Id, p2Id) {
   return true;
 }
 
-// a ile b arasında kenar var mı? Sadece gerçekten çizilmiş çizgiler sayılır.
-function edgeExists(a, b, allLines) {
-  return lineExists(allLines, a, b);
-}
-
-// Degenerate üçgen testi: p noktası a-b segmentine ≤1px mesafede mi?
-function nearlyOnSegment(p, a, b) {
-  if (p.x === a.x && p.y === a.y) return false;
-  if (p.x === b.x && p.y === b.y) return false;
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const len2 = dx * dx + dy * dy;
-  if (len2 === 0) return false;
-  const cross = dx * (p.y - a.y) - dy * (p.x - a.x);
-  if (cross * cross > len2) return false; // >1px uzaklık
-  const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
-  return t > 0.001 && t < 0.999;
-}
 
 export function findNewTriangles(existingLines, newP1, newP2, points) {
-  const allLines = [...existingLines, { p1: newP1, p2: newP2 }];
+  const nbrs1 = getNeighbors(newP1, existingLines);
+  const nbrs2Set = new Set(getNeighbors(newP2, existingLines));
   const result = [];
-  const seen = new Set();
-
-  if (!points) {
-    const nbrs1 = getNeighbors(newP1, existingLines);
-    const nbrs2Set = new Set(getNeighbors(newP2, existingLines));
-    for (const c of nbrs1) {
-      if (nbrs2Set.has(c) && c !== newP1 && c !== newP2) {
-        const [a, b, d] = [newP1, newP2, c].sort((x, y) => x - y);
-        result.push({ p1: a, p2: b, p3: d });
-      }
+  for (const c of nbrs1) {
+    if (!nbrs2Set.has(c) || c === newP1 || c === newP2) continue;
+    if (points) {
+      const pa = points[newP1], pb = points[newP2], pc = points[c];
+      const area = Math.abs((pb.x - pa.x) * (pc.y - pa.y) - (pc.x - pa.x) * (pb.y - pa.y));
+      if (area === 0) continue;
     }
-    return result;
-  }
-
-  const pt1 = points[newP1], pt2 = points[newP2];
-
-  // Yeni çizgi üzerindeki tüm noktalar (uç noktalar + iç grid noktaları)
-  const newLinePts = [newP1];
-  for (const p of points) {
-    if (p.id !== newP1 && p.id !== newP2 && pointOnSegmentInterior(p, pt1, pt2))
-      newLinePts.push(p.id);
-  }
-  newLinePts.push(newP2);
-
-  // Yeni üçgen, en az bir kenarını yeni çizgiden almalı:
-  // yani iki köşesi newLinePts içinde olmalı.
-  for (let i = 0; i < newLinePts.length; i++) {
-    for (let j = i + 1; j < newLinePts.length; j++) {
-      const X = newLinePts[i], Y = newLinePts[j];
-      for (const p of points) {
-        const Z = p.id;
-        if (Z === X || Z === Y) continue;
-        if (!edgeExists(X, Z, allLines)) continue;
-        if (!edgeExists(Y, Z, allLines)) continue;
-
-        const [a, b, d] = [X, Y, Z].sort((x, y) => x - y);
-        const key = `${a}-${b}-${d}`;
-        if (seen.has(key)) continue;
-
-        const pa = points[a], pb = points[b], pd = points[d];
-        const area = Math.abs((pb.x - pa.x) * (pd.y - pa.y) - (pd.x - pa.x) * (pb.y - pa.y));
-        if (area === 0) continue;
-        // Koordinat yuvarlama hatası: herhangi bir köşe karşı kenara ≤1px yakınsa degenere say.
-        if (nearlyOnSegment(pa, pb, pd)) continue;
-        if (nearlyOnSegment(pb, pa, pd)) continue;
-        if (nearlyOnSegment(pd, pa, pb)) continue;
-
-        seen.add(key);
-        result.push({ p1: a, p2: b, p3: d });
-      }
-    }
+    const [a, b, d] = [newP1, newP2, c].sort((x, y) => x - y);
+    result.push({ p1: a, p2: b, p3: d });
   }
   return result;
 }
