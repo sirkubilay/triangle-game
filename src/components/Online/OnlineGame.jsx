@@ -6,7 +6,19 @@ import TurnBanner from '../Game/TurnBanner';
 import GameOverModal from '../Game/GameOverModal';
 import ChatPanel from './ChatPanel';
 
-export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, onRestart, onLeave, chatMessages, onSendChat, rematchState, rematchFrom, onAcceptRestart, onDeclineRestart, turnTimeLeft }) {
+function PowerUpBtn({ icon, label, count, armed, disabled, onClick }) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all
+        ${armed ? 'border-amber-400 bg-amber-400/15 text-amber-300 animate-pulse' : 'border-slate-700 text-slate-400 hover:border-slate-500'}
+        ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}>
+      {icon} {label}
+      <span className={`text-[10px] rounded-full px-1 ${armed ? 'bg-amber-400/30 text-amber-200' : 'bg-slate-700 text-slate-500'}`}>{count}</span>
+    </button>
+  );
+}
+
+export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, onRestart, onLeave, chatMessages, onSendChat, rematchState, rematchFrom, onAcceptRestart, onDeclineRestart, turnTimeLeft, armedPowerUp, onArmPowerUp }) {
   const [muted, setMuted] = useState(isMuted());
   if (!gs) return null;
   const lastScoredCount = gs.newTriangleIds?.length ?? 0;
@@ -47,7 +59,30 @@ export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, on
         <GameBoard gs={gs} onPointClick={onPointClick} isAITurn={!isMyTurn} hintMove={null} />
       </div>
 
-      <div className="shrink-0 h-4" />
+      {gs.powerUps && isMyTurn && gs.phase === 'playing' && (() => {
+        const myPU = gs.powerUps[myPlayerNum] ?? {};
+        return (
+          <div className="shrink-0 flex items-center gap-2 px-3 pb-1">
+            <span className="text-[10px] text-slate-600 uppercase tracking-wider mr-1">Güç:</span>
+            <PowerUpBtn icon="⚡" label="Çift" count={myPU.doubleScore ?? 0}
+              armed={armedPowerUp === 'doubleScore'} disabled={(myPU.doubleScore ?? 0) === 0}
+              onClick={() => onArmPowerUp('doubleScore')} />
+            <PowerUpBtn icon="🔄" label="Ekstra" count={myPU.extraTurn ?? 0}
+              armed={armedPowerUp === 'extraTurn'} disabled={(myPU.extraTurn ?? 0) === 0}
+              onClick={() => onArmPowerUp('extraTurn')} />
+            <PowerUpBtn icon="🛑" label="Engel" count={myPU.blockTurn ?? 0}
+              armed={armedPowerUp === 'blockTurn'} disabled={(myPU.blockTurn ?? 0) === 0}
+              onClick={() => onArmPowerUp('blockTurn')} />
+            {armedPowerUp && (
+              <span className="text-[10px] text-amber-400 animate-pulse ml-1">
+                {{ doubleScore: '⚡ hazır', extraTurn: '🔄 hazır', blockTurn: '🛑 hazır' }[armedPowerUp]}
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
+      <div className="shrink-0 h-2" />
 
       {gs.phase === 'over' && rematchState === 'idle' && (
         <GameOverModal gs={gs} onRestart={onRestart} onMenu={onLeave} />

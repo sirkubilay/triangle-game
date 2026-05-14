@@ -161,8 +161,8 @@ io.on('connection', (socket) => {
 
   socket.on('cancel-match', () => { removeFromQueue(socket.id); });
 
-  socket.on('make-move', ({ code, p1, p2 }) => {
-    socket.to(code).emit('opponent-move', { p1, p2 });
+  socket.on('make-move', ({ code, p1, p2, powerUp }) => {
+    socket.to(code).emit('opponent-move', { p1, p2, powerUp: powerUp ?? null });
   });
 
   socket.on('restart-game', ({ code }) => {

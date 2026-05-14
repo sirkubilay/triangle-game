@@ -15,28 +15,49 @@ function buildState(cfg) {
     playerNames:  cfg.playerNames,
     playerColors: cfg.playerColors ?? { 1: '#818cf8', 2: '#fb7185' },
     turnTime: cfg.turnTime ?? 0,
+    powerUps: cfg.powerUps ? {
+      1: { doubleScore: 1, extraTurn: 1, blockTurn: 1 },
+      2: { doubleScore: 1, extraTurn: 1, blockTurn: 1 },
+    } : null,
+    armedPowerUp: null,
+    blockedPlayer: null,
     mode: 'online',
   };
 }
 
-function applyMove(prev, rawP1, rawP2) {
+function applyMove(prev, rawP1, rawP2, powerUp = null) {
   const p1 = Math.min(rawP1, rawP2), p2 = Math.max(rawP1, rawP2);
   if (lineExists(prev.lines, p1, p2)) return prev;
   if (!isMoveLegal(prev.lines, prev.points, p1, p2)) return prev;
 
-  const newLine   = { id: lineKey(p1, p2), p1, p2, player: prev.currentPlayer };
-  const updLines  = [...prev.lines, newLine];
-  const rawTris   = findNewTriangles(prev.lines, p1, p2, prev.points);
-  const exIds     = new Set(prev.triangles.map(t => t.id));
-  const newTris   = rawTris
+  const newLine  = { id: lineKey(p1, p2), p1, p2, player: prev.currentPlayer };
+  const updLines = [...prev.lines, newLine];
+  const rawTris  = findNewTriangles(prev.lines, p1, p2, prev.points);
+  const exIds    = new Set(prev.triangles.map(t => t.id));
+  const newTris  = rawTris
     .map(t => ({ ...t, id: `${t.p1}-${t.p2}-${t.p3}`, player: prev.currentPlayer }))
     .filter(t => !exIds.has(t.id));
 
-  const updTris   = [...prev.triangles, ...newTris];
-  const scored    = newTris.length;
-  const updScores = { ...prev.scores, [prev.currentPlayer]: prev.scores[prev.currentPlayer] + scored };
+  const updTris = [...prev.triangles, ...newTris];
+  const scored  = newTris.length;
+
+  const hasDouble = powerUp === 'doubleScore' && (prev.powerUps?.[prev.currentPlayer]?.doubleScore ?? 0) > 0;
+  const hasExtra  = powerUp === 'extraTurn'   && (prev.powerUps?.[prev.currentPlayer]?.extraTurn   ?? 0) > 0;
+  const hasBlock  = powerUp === 'blockTurn'   && (prev.powerUps?.[prev.currentPlayer]?.blockTurn   ?? 0) > 0;
+
+  const effectiveScore = scored * (hasDouble ? 2 : 1);
+  const updScores = { ...prev.scores, [prev.currentPlayer]: prev.scores[prev.currentPlayer] + effectiveScore };
 
   if (scored > 0) playTriangle(scored); else playLineDraw();
+
+  let newPowerUps = prev.powerUps;
+  if (powerUp && prev.powerUps) {
+    const cp = prev.currentPlayer;
+    newPowerUps = {
+      ...prev.powerUps,
+      [cp]: { ...prev.powerUps[cp], [powerUp]: Math.max(0, prev.powerUps[cp][powerUp] - 1) },
+    };
+  }
 
   const over = isGameOver(updLines, prev.points);
   let winner = null;
@@ -44,7 +65,13 @@ function applyMove(prev, rawP1, rawP2) {
     const s1 = updScores[1], s2 = updScores[2];
     winner = s1 > s2 ? 1 : s2 > s1 ? 2 : 0;
   }
-  const nextPlayer = scored > 0 && !over ? prev.currentPlayer : (prev.currentPlayer === 1 ? 2 : 1);
+
+  const stayNormal = scored > 0 && !over;
+  const stayExtra  = hasExtra && scored === 0 && !over;
+  const rawNext    = (stayNormal || stayExtra) ? prev.currentPlayer : (prev.currentPlayer === 1 ? 2 : 1);
+  const oppBlocked = !over && hasBlock && rawNext !== prev.currentPlayer;
+  const nextPlayer = oppBlocked ? prev.currentPlayer : rawNext;
+
   return {
     ...prev,
     lines: updLines, triangles: updTris, scores: updScores,
@@ -53,6 +80,9 @@ function applyMove(prev, rawP1, rawP2) {
     phase: over ? 'over' : 'playing',
     winner: over ? winner : null,
     newLineIds: [newLine.id], newTriangleIds: newTris.map(t => t.id),
+    powerUps: newPowerUps,
+    armedPowerUp: null,
+    blockedPlayer: oppBlocked ? rawNext : null,
   };
 }
 
@@ -66,7 +96,8 @@ export function useOnlineGame() {
   const [leaderboard,     setLeaderboard] = useState([]);
   const [rematchState,    setRematch]     = useState('idle'); // 'idle' | 'requested' | 'pending'
   const [rematchFrom,     setRematchFrom] = useState('');
-  const [turnTimeLeft,    setTurnTimeLeft] = useState(null);
+  const [turnTimeLeft,    setTurnTimeLeft]  = useState(null);
+  const [armedPowerUp,    setArmedPowerUp]  = useState(null);
   const configRef      = useRef(null);
   const myNameRef      = useRef('');
   const resultReported = useRef(false);
@@ -86,10 +117,11 @@ export function useOnlineGame() {
       if (code) setRoomCode(code);
       setStatus('playing');
       setChat([]);
+      setArmedPowerUp(null);
       resultReported.current = false;
     });
-    socket.on('opponent-move', ({ p1, p2 }) => {
-      setGs(prev => prev ? applyMove(prev, p1, p2) : prev);
+    socket.on('opponent-move', ({ p1, p2, powerUp }) => {
+      setGs(prev => prev ? applyMove(prev, p1, p2, powerUp ?? null) : prev);
     });
     socket.on('game-restart', ({ gameConfig }) => {
       setGs(buildState(gameConfig));
@@ -97,6 +129,7 @@ export function useOnlineGame() {
       setStatus('playing');
       setChat([]);
       setRematch('idle');
+      setArmedPowerUp(null);
       resultReported.current = false;
     });
     socket.on('restart-request', ({ from }) => { setRematch('pending'); setRematchFrom(from); });
@@ -194,9 +227,11 @@ export function useOnlineGame() {
       setGs(p => ({ ...p, selectedPoint: pointId })); return;
     }
     const p1 = Math.min(selectedPoint, pointId), p2 = Math.max(selectedPoint, pointId);
-    getSocket().emit('make-move', { code: roomCode, p1, p2 });
-    setGs(prev => applyMove(prev, p1, p2));
-  }, [gs, myPlayerNum, roomCode]);
+    const pu = armedPowerUp;
+    getSocket().emit('make-move', { code: roomCode, p1, p2, powerUp: pu });
+    setArmedPowerUp(null);
+    setGs(prev => applyMove(prev, p1, p2, pu));
+  }, [gs, myPlayerNum, roomCode, armedPowerUp]);
 
   const requestRestart = useCallback(() => {
     setRematch('requested');
@@ -222,10 +257,15 @@ export function useOnlineGame() {
     setLeaderboard(data);
   }, []);
 
+  const armPowerUp = useCallback((type) => {
+    setArmedPowerUp(prev => prev === type ? null : type);
+  }, []);
+
   const leave = useCallback(() => {
     getSocket().emit('cancel-match');
     disconnectSocket();
     setStatus('idle'); setGs(null); setRoomCode(''); setChat([]);
+    setArmedPowerUp(null);
   }, []);
 
   const isMyTurn = gs?.phase === 'playing' && gs?.currentPlayer === myPlayerNum;
@@ -234,8 +274,8 @@ export function useOnlineGame() {
     status, roomCode, myPlayerNum, gs, error, isMyTurn,
     chatMessages, leaderboard,
     rematchState, rematchFrom,
-    turnTimeLeft,
+    turnTimeLeft, armedPowerUp,
     createRoom, joinRoom, findMatch, cancelMatch,
-    handlePointClick, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
+    handlePointClick, armPowerUp, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
   };
 }

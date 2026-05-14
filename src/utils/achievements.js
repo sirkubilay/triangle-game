@@ -42,6 +42,21 @@ export const ACHIEVEMENTS = [
   { id: 'online_veteran',    icon: '🌍', title: 'Online Veteran',     desc: '5 online maç kazan',                       hint: 'Çevrimiçi modda toplam 5 galibiyet al' },
   { id: 'daily_master',      icon: '📆', title: 'Günlük Usta',        desc: 'Günlük bulmacayı 3 kez tamamla',           hint: 'Günlük Bulmaca modunu 3 veya daha fazla tamamla' },
   { id: 'time_attack_expert',icon: '⚡', title: 'Hız Efsanesi',       desc: 'Zaman saldırısında 25+ üçgen',             hint: 'Zaman Saldırısı modunda 25 veya daha fazla üçgen kapat' },
+
+  // ── Yeni: Online ─────────────────────────────────────────────────────────
+  { id: 'online_champion',   icon: '🌟', title: 'Online Şampiyon',    desc: '10 online maç kazan',                      hint: 'Çevrimiçi modda toplam 10 galibiyet al' },
+  { id: 'online_games_10',   icon: '🖥️',  title: 'Çevrimiçi Gamer',   desc: '10 online maç oyna',                       hint: 'Çevrimiçi modda toplam 10 maç tamamla' },
+  { id: 'online_streak_3',   icon: '⚡', title: 'Online Serisi',      desc: "Online'da 3 maçı üst üste kazan",          hint: 'Çevrimiçi modda arka arkaya 3 galibiyet al' },
+
+  // ── Yeni: Uzun Soluk ─────────────────────────────────────────────────────
+  { id: 'games_100',         icon: '🎰', title: 'Adanmış',            desc: '100 maç oyna',                             hint: 'Toplam 100 maç tamamla (mod fark etmez)' },
+  { id: 'win_streak_10',     icon: '🌊', title: 'Durdurulamaz',       desc: '10 maçı üst üste kazan',                   hint: 'Arka arkaya 10 maç kazan (herhangi mod)' },
+  { id: 'triangles_2000',    icon: '⭐', title: 'Üçgen Koleksiyoncusu', desc: '2000 toplam üçgen kapat',                hint: 'Tüm oyunlarda toplamda 2000 üçgen tamamla' },
+  { id: 'triangles_5000',    icon: '💎', title: 'Efsanevi Üçgen',     desc: '5000 toplam üçgen kapat',                  hint: 'Tüm oyunlarda toplamda 5000 üçgen tamamla' },
+
+  // ── Yeni: Strateji ───────────────────────────────────────────────────────
+  { id: 'flawless',          icon: '✨', title: 'Kusursuz Zafer',      desc: 'Rakibinden 2 kat fazla üçgenle kazan',     hint: 'Kazanırken skorun rakibinin en az 2 katı olsun (rakip > 0)' },
+  { id: 'no_power_win',      icon: '🧘', title: 'Güçsüz Güç',         desc: 'Güç kullanmadan kazan',                    hint: 'Power-up aktifleştirmeden bir oyunu kazan' },
 ];
 
 export function loadAchievements() {
@@ -137,6 +152,22 @@ export function checkAndUnlock(context) {
   if ((stats?.modes?.online?.wins ?? 0) >= 5)                          tryUnlock('online_veteran');
   if ((stats?.modes?.daily?.played ?? 0) >= 3)                         tryUnlock('daily_master');
   if (timeAttackScore >= 25)                                            tryUnlock('time_attack_expert');
+
+  // ── Yeni: Online ─────────────────────────────────────────────
+  if ((stats?.modes?.online?.wins ?? 0) >= 10)                         tryUnlock('online_champion');
+  if ((stats?.modes?.online?.played ?? 0) >= 10)                       tryUnlock('online_games_10');
+  if (mode === 'online' && gameResult === 'win' && streak >= 3)         tryUnlock('online_streak_3');
+
+  // ── Yeni: Uzun Soluk ─────────────────────────────────────────
+  if (stats?.totalGames >= 100)                                         tryUnlock('games_100');
+  if (streak >= 10)                                                     tryUnlock('win_streak_10');
+  if (stats?.totalTriangles >= 2000)                                    tryUnlock('triangles_2000');
+  if (stats?.totalTriangles >= 5000)                                    tryUnlock('triangles_5000');
+
+  // ── Yeni: Strateji ───────────────────────────────────────────
+  if (gameResult === 'win' && (opponentScore ?? 0) > 0 &&
+      (playerScore ?? 0) >= (opponentScore ?? 0) * 2)                  tryUnlock('flawless');
+  if (gameResult === 'win' && !powerUsed)                               tryUnlock('no_power_win');
 
   return unlocked;
 }

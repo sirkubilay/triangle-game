@@ -88,9 +88,9 @@ export default function OnlineLobby() {
     status, roomCode, myPlayerNum, gs, error, isMyTurn,
     chatMessages, leaderboard,
     rematchState, rematchFrom,
-    turnTimeLeft,
+    turnTimeLeft, armedPowerUp,
     createRoom, joinRoom, findMatch, cancelMatch,
-    handlePointClick, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
+    handlePointClick, armPowerUp, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
   } = useOnlineGame();
 
   const [tab,        setTab]    = useState(initialRoomCode ? 'join' : 'quick');
@@ -99,16 +99,17 @@ export default function OnlineLobby() {
   const [pointCount, setPoints] = useState(10);
   const [myColor,    setMyColor]   = useState(profile?.color ?? DEFAULT_COLORS[1]);
   const [oppColor,   setOppColor]  = useState(DEFAULT_COLORS[2]);
-  const [turnTime,   setTurnTime]  = useState(30);
-  const [lbLoading,  setLbLoading] = useState(false);
+  const [turnTime,   setTurnTime]   = useState(30);
+  const [powerUps,   setPowerUps]   = useState(true);
+  const [lbLoading,  setLbLoading]  = useState(false);
 
   useEffect(() => {
     if (tab === 'board') { setLbLoading(true); fetchLeaderboard(); setTimeout(() => setLbLoading(false), 1000); }
   }, [tab]);
 
-  function handleCreate() { createRoom(playerName.trim() || 'Oyuncu 1', { pointCount, playerColors: { 1: myColor, 2: oppColor }, turnTime }); }
+  function handleCreate() { createRoom(playerName.trim() || 'Oyuncu 1', { pointCount, playerColors: { 1: myColor, 2: oppColor }, turnTime, powerUps }); }
   function handleJoin()   { if (joinCode.trim().length < 4) return; joinRoom(joinCode.trim(), playerName.trim() || 'Oyuncu 2'); }
-  function handleFind()   { findMatch(playerName.trim() || 'Oyuncu', { pointCount, preferredColor: myColor, turnTime }); }
+  function handleFind()   { findMatch(playerName.trim() || 'Oyuncu', { pointCount, preferredColor: myColor, turnTime, powerUps }); }
   function handleLeave()  { leave(); goToMenu(); }
 
   const inviteUrl = roomCode ? `${window.location.origin}?room=${roomCode}` : '';
@@ -124,7 +125,7 @@ export default function OnlineLobby() {
         chatMessages={chatMessages} onSendChat={sendChat}
         rematchState={rematchState} rematchFrom={rematchFrom}
         onAcceptRestart={acceptRestart} onDeclineRestart={declineRestart}
-        turnTimeLeft={turnTimeLeft}
+        turnTimeLeft={turnTimeLeft} armedPowerUp={armedPowerUp} onArmPowerUp={armPowerUp}
       />
     );
   }
@@ -249,6 +250,13 @@ export default function OnlineLobby() {
                       ))}
                     </div>
                   </div>
+                  <div className="mb-5 flex items-center justify-between glass rounded-xl px-4 py-3 border border-slate-700/40">
+                    <span className="text-sm text-slate-300">⚡ Özel Güçler</span>
+                    <button onClick={() => setPowerUps(p => !p)}
+                      className={`w-11 h-6 rounded-full transition-all relative ${powerUps ? 'bg-indigo-500' : 'bg-slate-700'}`}>
+                      <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${powerUps ? 'left-5.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
                   <Button onClick={handleFind} variant="primary" size="lg" className="w-full">Rakip Bul</Button>
                 </motion.div>
               )}
@@ -290,6 +298,13 @@ export default function OnlineLobby() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div className="mb-5 flex items-center justify-between glass rounded-xl px-4 py-3 border border-slate-700/40">
+                    <span className="text-sm text-slate-300">⚡ Özel Güçler</span>
+                    <button onClick={() => setPowerUps(p => !p)}
+                      className={`w-11 h-6 rounded-full transition-all relative ${powerUps ? 'bg-indigo-500' : 'bg-slate-700'}`}>
+                      <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${powerUps ? 'left-5.5' : 'left-0.5'}`} />
+                    </button>
                   </div>
                   <Button onClick={handleCreate} variant="primary" size="lg" className="w-full">🌐 Oda Oluştur</Button>
                 </motion.div>
