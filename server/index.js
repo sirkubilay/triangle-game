@@ -141,11 +141,22 @@ io.on('connection', (socket) => {
       if (s1) { s1.join(code); s1.data.roomCode = code; }
       if (s2) { s2.join(code); s2.data.roomCode = code; }
 
-      const fullConfig = { ...p1.gameConfig, mode: 'online', points, playerNames: { 1: p1.playerName, 2: p2.playerName } };
+      const c1 = p1.gameConfig?.preferredColor || '#818cf8';
+      const c2 = p2.gameConfig?.preferredColor || '#fb7185';
+      const playerColors = { 1: c1, 2: c1 === c2 ? '#fb7185' : c2 };
+      const fullConfig = {
+        ...p1.gameConfig, mode: 'online', points,
+        playerNames: { 1: p1.playerName, 2: p2.playerName },
+        playerColors,
+      };
       io.to(p1.socketId).emit('game-start', { gameConfig: fullConfig, playerNum: 1, code });
       io.to(p2.socketId).emit('game-start', { gameConfig: fullConfig, playerNum: 2, code });
       console.log(`Eşleşme: ${code} — ${p1.playerName} vs ${p2.playerName}`);
     }
+  });
+
+  socket.on('pass-turn', ({ code }) => {
+    io.to(code).emit('turn-passed');
   });
 
   socket.on('cancel-match', () => { removeFromQueue(socket.id); });

@@ -68,7 +68,13 @@ function Leaderboard({ data, onRefresh, loading }) {
   );
 }
 
-const POINT_OPTIONS = [10, 14, 18];
+const POINT_OPTIONS  = [10, 14, 18];
+const TIMER_OPTIONS  = [
+  { value: 0,  label: '∞',   desc: 'Süresiz' },
+  { value: 15, label: '15s', desc: 'Hızlı'   },
+  { value: 30, label: '30s', desc: 'Normal'  },
+  { value: 60, label: '1dk', desc: 'Yavaş'   },
+];
 const TABS = [
   { id: 'quick',  label: '⚡ Hızlı' },
   { id: 'create', label: '➕ Oda' },
@@ -82,6 +88,7 @@ export default function OnlineLobby() {
     status, roomCode, myPlayerNum, gs, error, isMyTurn,
     chatMessages, leaderboard,
     rematchState, rematchFrom,
+    turnTimeLeft,
     createRoom, joinRoom, findMatch, cancelMatch,
     handlePointClick, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
   } = useOnlineGame();
@@ -92,15 +99,16 @@ export default function OnlineLobby() {
   const [pointCount, setPoints] = useState(10);
   const [myColor,    setMyColor]   = useState(profile?.color ?? DEFAULT_COLORS[1]);
   const [oppColor,   setOppColor]  = useState(DEFAULT_COLORS[2]);
+  const [turnTime,   setTurnTime]  = useState(30);
   const [lbLoading,  setLbLoading] = useState(false);
 
   useEffect(() => {
     if (tab === 'board') { setLbLoading(true); fetchLeaderboard(); setTimeout(() => setLbLoading(false), 1000); }
   }, [tab]);
 
-  function handleCreate() { createRoom(playerName.trim() || 'Oyuncu 1', { pointCount, playerColors: { 1: myColor, 2: oppColor } }); }
+  function handleCreate() { createRoom(playerName.trim() || 'Oyuncu 1', { pointCount, playerColors: { 1: myColor, 2: oppColor }, turnTime }); }
   function handleJoin()   { if (joinCode.trim().length < 4) return; joinRoom(joinCode.trim(), playerName.trim() || 'Oyuncu 2'); }
-  function handleFind()   { findMatch(playerName.trim() || 'Oyuncu', { pointCount, playerColors: { 1: myColor, 2: oppColor } }); }
+  function handleFind()   { findMatch(playerName.trim() || 'Oyuncu', { pointCount, preferredColor: myColor, turnTime }); }
   function handleLeave()  { leave(); goToMenu(); }
 
   const inviteUrl = roomCode ? `${window.location.origin}?room=${roomCode}` : '';
@@ -116,6 +124,7 @@ export default function OnlineLobby() {
         chatMessages={chatMessages} onSendChat={sendChat}
         rematchState={rematchState} rematchFrom={rematchFrom}
         onAcceptRestart={acceptRestart} onDeclineRestart={declineRestart}
+        turnTimeLeft={turnTimeLeft}
       />
     );
   }
@@ -224,9 +233,21 @@ export default function OnlineLobby() {
               {/* Hızlı Eşleşme */}
               {tab === 'quick' && (
                 <motion.div key="quick" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
-                  <div className="glass rounded-2xl p-5 border border-slate-700/40 mb-5 text-center">
-                    <div className="text-3xl mb-2">⚡</div>
-                    <p className="text-slate-300 text-sm">Rastgele bir rakiple anında eşleş.</p>
+                  <div className="mb-4 glass rounded-2xl p-4 border border-slate-700/40">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">🎨 Rengin</label>
+                    <ColorRow label="" selected={myColor} onSelect={setMyColor} exclude={null} />
+                  </div>
+                  <div className="mb-5">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">⏱ Hamle Süresi</label>
+                    <div className="flex gap-2">
+                      {TIMER_OPTIONS.map(t => (
+                        <button key={t.value} onClick={() => setTurnTime(t.value)}
+                          className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${turnTime === t.value ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                          {t.label}
+                          <div className="text-xs font-normal text-slate-600">{t.desc}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <Button onClick={handleFind} variant="primary" size="lg" className="w-full">Rakip Bul</Button>
                 </motion.div>
@@ -256,6 +277,18 @@ export default function OnlineLobby() {
                     <div className="flex gap-2 mt-3">
                       <div className="flex-1 h-1.5 rounded-full" style={{ background: myColor }} />
                       <div className="flex-1 h-1.5 rounded-full" style={{ background: oppColor }} />
+                    </div>
+                  </div>
+                  <div className="mb-5">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">⏱ Hamle Süresi</label>
+                    <div className="flex gap-2">
+                      {TIMER_OPTIONS.map(t => (
+                        <button key={t.value} onClick={() => setTurnTime(t.value)}
+                          className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${turnTime === t.value ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                          {t.label}
+                          <div className="text-xs font-normal text-slate-600">{t.desc}</div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                   <Button onClick={handleCreate} variant="primary" size="lg" className="w-full">🌐 Oda Oluştur</Button>

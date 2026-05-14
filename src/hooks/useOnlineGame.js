@@ -14,6 +14,7 @@ function buildState(cfg) {
     newLineIds: [], newTriangleIds: [],
     playerNames:  cfg.playerNames,
     playerColors: cfg.playerColors ?? { 1: '#818cf8', 2: '#fb7185' },
+    turnTime: cfg.turnTime ?? 0,
     mode: 'online',
   };
 }
@@ -65,9 +66,11 @@ export function useOnlineGame() {
   const [leaderboard,     setLeaderboard] = useState([]);
   const [rematchState,    setRematch]     = useState('idle'); // 'idle' | 'requested' | 'pending'
   const [rematchFrom,     setRematchFrom] = useState('');
-  const configRef     = useRef(null);
-  const myNameRef     = useRef('');
+  const [turnTimeLeft,    setTurnTimeLeft] = useState(null);
+  const configRef      = useRef(null);
+  const myNameRef      = useRef('');
   const resultReported = useRef(false);
+  const roomCodeRef    = useRef('');
 
   useEffect(() => {
     const socket = getSocket();
@@ -102,6 +105,13 @@ export function useOnlineGame() {
     socket.on('join-error',  ({ msg }) => { setError(msg); setStatus('idle'); });
     socket.on('chat-message', (msg) => { setChat(prev => [...prev.slice(-49), msg]); });
     socket.on('leaderboard', (data) => { setLeaderboard(data); });
+    socket.on('turn-passed', () => {
+      setGs(prev => {
+        if (!prev || prev.phase !== 'playing') return prev;
+        return { ...prev, currentPlayer: prev.currentPlayer === 1 ? 2 : 1, selectedPoint: null, newLineIds: [], newTriangleIds: [] };
+      });
+      setTurnTimeLeft(null);
+    });
 
     return () => {
       socket.off('room-created'); socket.off('game-start');
@@ -109,8 +119,33 @@ export function useOnlineGame() {
       socket.off('restart-request'); socket.off('restart-declined');
       socket.off('player-left'); socket.off('join-error');
       socket.off('chat-message'); socket.off('leaderboard');
+      socket.off('turn-passed');
     };
   }, []);
+
+  // Keep roomCodeRef in sync for timer callback
+  useEffect(() => { roomCodeRef.current = roomCode; }, [roomCode]);
+
+  // Turn timer
+  useEffect(() => {
+    const turnTime = gs?.turnTime;
+    if (!turnTime || !gs || gs.phase !== 'playing') { setTurnTimeLeft(null); return; }
+    const myTurn = gs.currentPlayer === myPlayerNum;
+    if (!myTurn) { setTurnTimeLeft(null); return; }
+    setTurnTimeLeft(turnTime);
+    const id = setInterval(() => {
+      setTurnTimeLeft(prev => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          clearInterval(id);
+          getSocket().emit('pass-turn', { code: roomCodeRef.current });
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [gs?.currentPlayer, myPlayerNum, gs?.phase, gs?.turnTime]);
 
   // Report result when game ends
   useEffect(() => {
@@ -199,6 +234,7 @@ export function useOnlineGame() {
     status, roomCode, myPlayerNum, gs, error, isMyTurn,
     chatMessages, leaderboard,
     rematchState, rematchFrom,
+    turnTimeLeft,
     createRoom, joinRoom, findMatch, cancelMatch,
     handlePointClick, requestRestart, acceptRestart, declineRestart, sendChat, fetchLeaderboard, leave,
   };

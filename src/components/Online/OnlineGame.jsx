@@ -6,11 +6,16 @@ import TurnBanner from '../Game/TurnBanner';
 import GameOverModal from '../Game/GameOverModal';
 import ChatPanel from './ChatPanel';
 
-export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, onRestart, onLeave, chatMessages, onSendChat, rematchState, rematchFrom, onAcceptRestart, onDeclineRestart }) {
+export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, onRestart, onLeave, chatMessages, onSendChat, rematchState, rematchFrom, onAcceptRestart, onDeclineRestart, turnTimeLeft }) {
   const [muted, setMuted] = useState(isMuted());
   if (!gs) return null;
   const lastScoredCount = gs.newTriangleIds?.length ?? 0;
   function handleMute() { const m = toggleMute(); setMuted(m); }
+
+  const turnTime = gs.turnTime ?? 0;
+  const timerColor = turnTimeLeft <= 5 ? 'text-rose-400 border-rose-500/50 bg-rose-500/10'
+    : turnTimeLeft <= 10 ? 'text-amber-400 border-amber-500/50 bg-amber-500/10'
+    : 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10';
 
   return (
     <div className="full-screen flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--c-bg)' }}>
@@ -23,6 +28,11 @@ export default function OnlineGame({ gs, myPlayerNum, isMyTurn, onPointClick, on
           }`}>
             {isMyTurn ? '🟢 Sıran' : '⏳ Rakip'}
           </div>
+          {turnTime > 0 && turnTimeLeft !== null && (
+            <div className={`text-xs font-bold px-2 py-0.5 rounded-full border tabular-nums transition-all ${timerColor}`}>
+              {turnTimeLeft}s
+            </div>
+          )}
           <span className="text-[10px] text-slate-700 border border-slate-800 rounded-full px-1.5 py-0.5">P{myPlayerNum}</span>
         </div>
         <button onClick={handleMute} className="text-slate-500 active:text-slate-300 text-sm p-1">
