@@ -1,0 +1,12 @@
+{
+  "appId": "com.trigon.game",
+  "appName": "Trigon",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#0f172a"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

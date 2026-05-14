@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket, disconnectSocket } from '../utils/socket';
 import { lineKey, lineExists, isMoveLegal, isSubsegment, findNewTriangles, isGameOver } from '../utils/triangleLogic';
 import { playLineDraw, playTriangle, playGameWin, playGameLose } from '../utils/sounds';
+import { saveOnlineResult, getOnlineLeaderboard } from '../utils/firestore';
 
 function buildState(cfg) {
   return {
@@ -121,6 +122,7 @@ export function useOnlineGame() {
     else result = winner === myPlayerNum ? 'win' : 'loss';
     if (winner === myPlayerNum) playGameWin(); else if (winner !== 0) playGameLose();
     getSocket().emit('report-result', { playerName: myNameRef.current, result });
+    saveOnlineResult(myNameRef.current, result);
   }, [gs?.phase, gs?.winner, myPlayerNum]);
 
   const createRoom = useCallback((playerName, gameConfig) => {
@@ -180,8 +182,9 @@ export function useOnlineGame() {
     getSocket().emit('chat-message', { code: roomCode, message });
   }, [roomCode]);
 
-  const fetchLeaderboard = useCallback(() => {
-    getSocket().emit('get-leaderboard');
+  const fetchLeaderboard = useCallback(async () => {
+    const data = await getOnlineLeaderboard();
+    setLeaderboard(data);
   }, []);
 
   const leave = useCallback(() => {

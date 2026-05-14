@@ -8,6 +8,9 @@ const ALLOWED_ORIGINS = [
   'https://triangle-game.vercel.app',
   'https://triangle-game-server.onrender.com',
   'http://localhost:5173',
+  'capacitor://localhost',
+  'https://localhost',
+  'http://localhost',
 ];
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 

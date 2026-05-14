@@ -1,6 +1,6 @@
 import { db, auth } from './firebase';
 import {
-  doc, collection, query, where, limit,
+  doc, collection, query, where, orderBy, limit,
   getDocs, serverTimestamp, runTransaction,
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
@@ -32,6 +32,42 @@ export async function saveDailyScore({ name, score, stars }) {
     });
   } catch (err) {
     console.error('Firebase saveDailyScore:', err);
+  }
+}
+
+export async function saveOnlineResult(name, result) {
+  try {
+    const userId = await getOrCreateUser();
+    const ref = doc(db, 'onlineStats', userId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const data = snap.exists()
+        ? { ...snap.data() }
+        : { wins: 0, losses: 0, draws: 0 };
+      if (result === 'win')       data.wins++;
+      else if (result === 'loss') data.losses++;
+      else if (result === 'draw') data.draws++;
+      data.name = name;
+      data.updatedAt = serverTimestamp();
+      tx.set(ref, data);
+    });
+  } catch (err) {
+    console.error('Firebase saveOnlineResult:', err);
+  }
+}
+
+export async function getOnlineLeaderboard(limitCount = 20) {
+  try {
+    const q = query(
+      collection(db, 'onlineStats'),
+      orderBy('wins', 'desc'),
+      limit(limitCount),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data());
+  } catch (err) {
+    console.error('Firebase getOnlineLeaderboard:', err);
+    return [];
   }
 }
 
