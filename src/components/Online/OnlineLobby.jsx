@@ -68,7 +68,7 @@ function Leaderboard({ data, onRefresh, loading }) {
   );
 }
 
-const POINT_OPTIONS  = [10, 14, 18];
+const POINT_OPTIONS  = [10, 14, 18, 22, 26];
 const TIMER_OPTIONS  = [
   { value: 0,  label: '∞',   desc: 'Süresiz' },
   { value: 15, label: '15s', desc: 'Hızlı'   },
@@ -266,12 +266,12 @@ export default function OnlineLobby() {
                 <motion.div key="create" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
                   <div className="mb-4">
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Nokta Sayısı</label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {POINT_OPTIONS.map(n => (
                         <button key={n} onClick={() => setPoints(n)}
-                          className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                          className={`flex-1 min-w-[56px] py-2 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
                           {n}
-                          <div className="text-xs font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : 'Epik'}</div>
+                          <div className="text-[10px] font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : n === 18 ? 'Epik' : n === 22 ? 'Mega' : 'Ultra'}</div>
                         </button>
                       ))}
                     </div>

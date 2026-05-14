@@ -11,7 +11,7 @@ const DIFFICULTIES = [
   { id: 'hard',   label: 'Zor',   icon: '🔥', desc: 'Stratejik oynar, zor alt edilir' },
 ];
 
-const POINT_OPTIONS = [10, 14, 18];
+const POINT_OPTIONS = [10, 14, 18, 22, 26];
 
 const GRID_OPTIONS = [
   { rows: 3, cols: 3, label: '3×3', sub: 'Hızlı' },
@@ -177,12 +177,12 @@ export default function GameSetup() {
             </div>
 
             {layout === 'random' && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {POINT_OPTIONS.map(n => (
                   <button key={n} onClick={() => setPoints(n)}
-                    className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                    className={`flex-1 min-w-[56px] py-2 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
                     {n}
-                    <div className="text-xs font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : 'Epik'}</div>
+                    <div className="text-[10px] font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : n === 18 ? 'Epik' : n === 22 ? 'Mega' : 'Ultra'}</div>
                   </button>
                 ))}
               </div>
