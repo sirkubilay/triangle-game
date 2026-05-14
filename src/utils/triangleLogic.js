@@ -139,6 +139,21 @@ export function isMoveLegal(lines, points, p1Id, p2Id) {
   return true;
 }
 
+// Tam üst-üste çakışma testi: p noktası a-b segmentinin tam iç kısmında mı?
+// cross=0 zorunluluğuyla sadece gerçekten doğrusal noktaları yakalar.
+// Rastgele modda 8px toleranslı sürümün yol açtığı yanlış engelleri önler.
+function pointOnSegmentExact(p, a, b) {
+  if (p.x === a.x && p.y === a.y) return false;
+  if (p.x === b.x && p.y === b.y) return false;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return false;
+  const cross = dx * (p.y - a.y) - dy * (p.x - a.x);
+  if (cross !== 0) return false;
+  const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+  return t > 0.001 && t < 0.999;
+}
+
 // Bir kenarın alt-parçası mı?
 // Durum A: her iki uç nokta tek bir mevcut çizgi üzerindeyse → true
 // Durum B: segment, birden fazla ardışık doğrusal çizgiyle tamamen kaplıysa → true
@@ -147,30 +162,28 @@ export function isSubsegment(lines, points, p1Id, p2Id) {
   const pt1 = points[p1Id];
   const pt2 = points[p2Id];
 
-  // Durum A
+  // Durum A: tam çakışma kontrolü (exact cross=0)
   for (const line of lines) {
     const lp1 = points[line.p1], lp2 = points[line.p2];
-    const p1on = (line.p1 === p1Id || line.p2 === p1Id) || pointOnSegmentInterior(pt1, lp1, lp2);
-    const p2on = (line.p1 === p2Id || line.p2 === p2Id) || pointOnSegmentInterior(pt2, lp1, lp2);
+    const p1on = (line.p1 === p1Id || line.p2 === p1Id) || pointOnSegmentExact(pt1, lp1, lp2);
+    const p2on = (line.p1 === p2Id || line.p2 === p2Id) || pointOnSegmentExact(pt2, lp1, lp2);
     if (p1on && p2on) return true;
   }
 
   // Durum B: segment üzerindeki tüm noktaları topla, sırala, ardışık çiftleri kontrol et
   const onSeg = [p1Id];
   for (const p of points) {
-    if (p.id !== p1Id && p.id !== p2Id && pointOnSegmentInterior(p, pt1, pt2))
+    if (p.id !== p1Id && p.id !== p2Id && pointOnSegmentExact(p, pt1, pt2))
       onSeg.push(p.id);
   }
   onSeg.push(p2Id);
-  if (onSeg.length <= 2) return false; // ara nokta yok, Durum A halletti
+  if (onSeg.length <= 2) return false;
 
   onSeg.sort((a, b) =>
     Math.hypot(points[a].x - pt1.x, points[a].y - pt1.y) -
     Math.hypot(points[b].x - pt1.x, points[b].y - pt1.y)
   );
 
-  // Ardışık çiftlerin her biri de bir alt-segment mi kontrol et (özyinelemeli).
-  // Komşu çiftler arasında başka nokta olmadığından Durum A'ya indirgenir, sonsuz döngü olmaz.
   for (let i = 0; i < onSeg.length - 1; i++) {
     if (!isSubsegment(lines, points, onSeg[i], onSeg[i + 1])) return false;
   }
