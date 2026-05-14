@@ -69,6 +69,11 @@ function Leaderboard({ data, onRefresh, loading }) {
 }
 
 const POINT_OPTIONS  = [10, 14, 18, 22, 26];
+const GRID_OPTIONS   = [
+  { rows: 3, cols: 3, label: '3×3', sub: 'Hızlı'  },
+  { rows: 4, cols: 4, label: '4×4', sub: 'Normal' },
+  { rows: 5, cols: 5, label: '5×5', sub: 'Yoğun'  },
+];
 const TIMER_OPTIONS  = [
   { value: 0,  label: '∞',   desc: 'Süresiz' },
   { value: 15, label: '15s', desc: 'Hızlı'   },
@@ -101,15 +106,22 @@ export default function OnlineLobby() {
   const [oppColor,   setOppColor]  = useState(DEFAULT_COLORS[2]);
   const [turnTime,   setTurnTime]   = useState(30);
   const [powerUps,   setPowerUps]   = useState(true);
+  const [layout,     setLayout]     = useState('random');
+  const [gridSize,   setGridSize]   = useState({ rows: 4, cols: 4 });
   const [lbLoading,  setLbLoading]  = useState(false);
 
   useEffect(() => {
     if (tab === 'board') { setLbLoading(true); fetchLeaderboard(); setTimeout(() => setLbLoading(false), 1000); }
   }, [tab]);
 
-  function handleCreate() { createRoom(playerName.trim() || 'Oyuncu 1', { pointCount, playerColors: { 1: myColor, 2: oppColor }, turnTime, powerUps }); }
+  const gameConfig = () => ({
+    pointCount, layout,
+    gridRows: gridSize.rows, gridCols: gridSize.cols,
+    turnTime, powerUps,
+  });
+  function handleCreate() { createRoom(playerName.trim() || 'Oyuncu 1', { ...gameConfig(), playerColors: { 1: myColor, 2: oppColor } }); }
   function handleJoin()   { if (joinCode.trim().length < 4) return; joinRoom(joinCode.trim(), playerName.trim() || 'Oyuncu 2'); }
-  function handleFind()   { findMatch(playerName.trim() || 'Oyuncu', { pointCount, preferredColor: myColor, turnTime, powerUps }); }
+  function handleFind()   { findMatch(playerName.trim() || 'Oyuncu', { ...gameConfig(), preferredColor: myColor }); }
   function handleLeave()  { leave(); goToMenu(); }
 
   const inviteUrl = roomCode ? `${window.location.origin}?room=${roomCode}` : '';
@@ -235,16 +247,37 @@ export default function OnlineLobby() {
               {tab === 'quick' && (
                 <motion.div key="quick" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
                   <div className="mb-4">
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Nokta Sayısı</label>
-                    <div className="flex flex-wrap gap-2">
-                      {POINT_OPTIONS.map(n => (
-                        <button key={n} onClick={() => setPoints(n)}
-                          className={`flex-1 min-w-[56px] py-2 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
-                          {n}
-                          <div className="text-[10px] font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : n === 18 ? 'Epik' : n === 22 ? 'Mega' : 'Ultra'}</div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Tahta Düzeni</label>
+                    <div className="flex rounded-xl bg-slate-800 p-1 mb-3">
+                      {[{ id: 'random', label: '🎲 Rastgele' }, { id: 'grid', label: '⊞ Izgara' }].map(o => (
+                        <button key={o.id} onClick={() => setLayout(o.id)}
+                          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${layout === o.id ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>
+                          {o.label}
                         </button>
                       ))}
                     </div>
+                    {layout === 'random' && (
+                      <div className="flex flex-wrap gap-2">
+                        {POINT_OPTIONS.map(n => (
+                          <button key={n} onClick={() => setPoints(n)}
+                            className={`flex-1 min-w-[56px] py-2 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                            {n}
+                            <div className="text-[10px] font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : n === 18 ? 'Epik' : n === 22 ? 'Mega' : 'Ultra'}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {layout === 'grid' && (
+                      <div className="flex gap-2">
+                        {GRID_OPTIONS.map(g => (
+                          <button key={g.label} onClick={() => setGridSize({ rows: g.rows, cols: g.cols })}
+                            className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${gridSize.rows === g.rows ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                            {g.label}
+                            <div className="text-xs font-normal text-slate-600">{g.sub}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="mb-4 glass rounded-2xl p-4 border border-slate-700/40">
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">🎨 Rengin</label>
@@ -277,16 +310,37 @@ export default function OnlineLobby() {
               {tab === 'create' && (
                 <motion.div key="create" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
                   <div className="mb-4">
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Nokta Sayısı</label>
-                    <div className="flex flex-wrap gap-2">
-                      {POINT_OPTIONS.map(n => (
-                        <button key={n} onClick={() => setPoints(n)}
-                          className={`flex-1 min-w-[56px] py-2 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
-                          {n}
-                          <div className="text-[10px] font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : n === 18 ? 'Epik' : n === 22 ? 'Mega' : 'Ultra'}</div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Tahta Düzeni</label>
+                    <div className="flex rounded-xl bg-slate-800 p-1 mb-3">
+                      {[{ id: 'random', label: '🎲 Rastgele' }, { id: 'grid', label: '⊞ Izgara' }].map(o => (
+                        <button key={o.id} onClick={() => setLayout(o.id)}
+                          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${layout === o.id ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>
+                          {o.label}
                         </button>
                       ))}
                     </div>
+                    {layout === 'random' && (
+                      <div className="flex flex-wrap gap-2">
+                        {POINT_OPTIONS.map(n => (
+                          <button key={n} onClick={() => setPoints(n)}
+                            className={`flex-1 min-w-[56px] py-2 rounded-xl border-2 text-sm font-bold transition-all ${pointCount === n ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                            {n}
+                            <div className="text-[10px] font-normal text-slate-600">{n === 10 ? 'Normal' : n === 14 ? 'Uzun' : n === 18 ? 'Epik' : n === 22 ? 'Mega' : 'Ultra'}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {layout === 'grid' && (
+                      <div className="flex gap-2">
+                        {GRID_OPTIONS.map(g => (
+                          <button key={g.label} onClick={() => setGridSize({ rows: g.rows, cols: g.cols })}
+                            className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${gridSize.rows === g.rows ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                            {g.label}
+                            <div className="text-xs font-normal text-slate-600">{g.sub}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="mb-5 glass rounded-2xl p-4 border border-slate-700/40">
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">🎨 Renkler</label>
