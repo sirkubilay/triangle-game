@@ -177,11 +177,9 @@ export function isSubsegment(lines, points, p1Id, p2Id) {
   return true;
 }
 
-// a ile b arasında kenar var mı?
-// isSubsegment kullanır → tek çizgi, alt-segment ve çok parçalı doğrusal kaplama hepsini yakalar.
-function edgeExists(a, b, allLines, points) {
-  if (!points) return lineExists(allLines, a, b);
-  return isSubsegment(allLines, points, a, b);
+// a ile b arasında kenar var mı? Sadece gerçekten çizilmiş çizgiler sayılır.
+function edgeExists(a, b, allLines) {
+  return lineExists(allLines, a, b);
 }
 
 // Degenerate üçgen testi: p noktası a-b segmentine ≤1px mesafede mi?
@@ -232,8 +230,8 @@ export function findNewTriangles(existingLines, newP1, newP2, points) {
       for (const p of points) {
         const Z = p.id;
         if (Z === X || Z === Y) continue;
-        if (!edgeExists(X, Z, allLines, points)) continue;
-        if (!edgeExists(Y, Z, allLines, points)) continue;
+        if (!edgeExists(X, Z, allLines)) continue;
+        if (!edgeExists(Y, Z, allLines)) continue;
 
         const [a, b, d] = [X, Y, Z].sort((x, y) => x - y);
         const key = `${a}-${b}-${d}`;

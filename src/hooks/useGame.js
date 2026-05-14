@@ -241,13 +241,10 @@ export function useGame(config) {
     }
 
     // Next player: scored → stay, extraTurn+no score → stay, else → switch
-    // AI (P2) always hands turn back after one move — no chaining
     const stayNormal = scored > 0 && !over;
     const stayExtra  = hasExtra && scored === 0 && !over;
     const isSinglePlayer = prev.mode === 'timeAttack' || prev.mode === 'daily';
-    const isAIMove   = prev.mode === 'vsAI' && prev.currentPlayer === 2;
     const rawNext = isSinglePlayer ? 1
-      : isAIMove ? 1
       : ((stayNormal || stayExtra) ? prev.currentPlayer : (prev.currentPlayer === 1 ? 2 : 1));
     // blockTurn: if opponent is blocked, skip them (give one more turn to current player)
     const oppBlocked = !over && !isSinglePlayer && hasBlock && rawNext !== prev.currentPlayer;
